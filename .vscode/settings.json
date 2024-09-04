@@ -1,0 +1,20 @@
+{
+    "files.associations": {
+        "stdio.h": "c",
+        "__config": "c",
+        "inttypes.h": "c",
+        "stdlib.h": "c",
+        "stdint.h": "c",
+        "typeinfo": "c",
+        "limits.h": "c",
+        "stb_image.h": "c",
+        "endian.h": "c",
+        "endianness.h": "c",
+        "byteswap.h": "c",
+        "array": "c",
+        "string": "c",
+        "string_view": "c",
+        "vector": "c"
+    },
+    "C_Cpp.default.compilerPath": "/usr/bin/clang-14"
+}
