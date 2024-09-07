@@ -14,7 +14,10 @@
         "array": "c",
         "string": "c",
         "string_view": "c",
-        "vector": "c"
+        "vector": "c",
+        "lualib.h": "c",
+        "lauxlib.h": "c",
+        "lfs.h": "c"
     },
     "C_Cpp.default.compilerPath": "/usr/bin/clang-14"
 }
