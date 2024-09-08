@@ -59,6 +59,7 @@ function MODULE.unpak()
   end
 
   -- CREATE EXTRACTION DIR
+  print(extraction_path)
   if not path.exists(extraction_path) then
     if not fs.mkdir(extraction_path) then
       f:close()

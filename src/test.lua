@@ -1,2 +1,6 @@
 local foo = require('foo')
-print(foo.to_uppercase("suck my dick motherfucker!"))
+local lfs = require('lfs')
+
+print(
+  foo.to_uppercase(
+    lfs.currentdir()))

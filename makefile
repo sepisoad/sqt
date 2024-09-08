@@ -1,10 +1,18 @@
-# TODO: improve Makefile
-# build:
-# 	gcc -g -o0 -o qtools src/main.c libs/c/lfs/lfs.c -llua5.4 -I.
+CC = gcc
+DEBUG_FLAGS = -g -o0
+RELEASE_FLAGS = -O3
+CFLAGS = $(DEBUG_FLAGS)
+LIBS = -llua5.4
+INC = -I. 
+BIN = qtools
 
-build:
-	gcc -g -o0 -o qtools libs/c/foo/foo.c src/main.c  -llua5.4 -I.
-	
+SRC = \
+	libs/c/foo/foo.c \
+	libs/c/lfs/lfs.c \
+	src/main.c
+
+build: 
+	$(CC) $(CFLAGS) $(SRC) -o $(BIN) $(LIBS) $(INC)
 
 unpak:
-	@lua src/init.lua "/home/sepi/Projects/internet/games/quake/game/id1/pak0.pak" "/home/sepi/Projects/sepi/quake-tools/unpaker/UNPAK"
+	@./$(BIN) "/home/sepi/Projects/internet/games/quake/game/id1/pak0.pak" "/home/sepi/Projects/sepi/quake-tools/UNPAK"
