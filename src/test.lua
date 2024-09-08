@@ -1,4 +1,4 @@
-local lfs = require('lfs')
-
-print("asdasdasd")
-print(lfs.get_dir('.'))
+print("before require")
+local foo = require('foo')
+print("after require")
+print(foo.to_uppercase("sepi"))
