@@ -18,7 +18,7 @@ local getenv = os.getenv
 local tmpnam = os.tmpname
 local package = package
 local append, concat, remove = table.insert, table.concat, table.remove
-local utils = require 'libs.lua.utils'
+local utils = require 'libs.lua.dir.utils'
 local assert_string,raise = utils.assert_string,utils.raise
 
 local res,lfs = _G.pcall(_G.require,'lfs')

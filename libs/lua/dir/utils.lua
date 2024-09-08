@@ -6,7 +6,7 @@
 --
 -- @module pl.utils
 local format = string.format
-local compat = require 'libs.lua.compat'
+local compat = require 'libs.lua.dir.compat'
 local stdout = io.stdout
 local append = table.insert
 local concat = table.concat
@@ -438,7 +438,7 @@ function utils.function_arg (idx,f,msg)
     if tp == 'function' then return f end  -- no worries!
     -- ok, a string can correspond to an operator (like '==')
     if tp == 'string' then
-        if not operators then operators = require 'libs.lua.operator'.optable end
+        if not operators then operators = require 'libs.lua.dir.operator'.optable end
         local fn = operators[f]
         if fn then return fn end
         local fn, err = utils.string_lambda(f)

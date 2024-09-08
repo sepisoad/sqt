@@ -1,7 +1,6 @@
 local fs = require('lfs')
-local dir = require('libs.lua.dir')
-local path = require('libs.lua.path')
--- local pprint = require('libs.lua.pprint')
+local dir = require('libs.lua.dir.dir')
+local path = require('libs.lua.dir.path')
 
 local MODULE = {}
 
@@ -9,11 +8,7 @@ MODULE.defs = {
   HEADER_ITEM_SIZE = 56 + 4 + 4, -- name + pos + len
 }
 
-function MODULE.unpak()
-  -- READ CMD ARGS
-  local pak_file_path = arg[1]
-  local extraction_path = arg[2]
-
+function MODULE.unpak(pak_file_path, extraction_path)
   -- OPEN THE INPUT PAK FILE
   local f, err = io.open(pak_file_path, "rb")
   if not f then

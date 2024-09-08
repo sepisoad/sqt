@@ -7,7 +7,6 @@ INC = -I.
 BIN = qtools
 
 SRC = \
-	libs/c/foo/foo.c \
 	libs/c/lfs/lfs.c \
 	src/main.c
 
@@ -15,4 +14,4 @@ build:
 	$(CC) $(CFLAGS) $(SRC) -o $(BIN) $(LIBS) $(INC)
 
 unpak:
-	@./$(BIN) "/home/sepi/Projects/internet/games/quake/game/id1/pak0.pak" "/home/sepi/Projects/sepi/quake-tools/UNPAK"
+	@./$(BIN) unpak /home/sepi/Projects/internet/games/quake/game/id1/pak0.pak UNPAK

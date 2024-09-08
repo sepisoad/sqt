@@ -2,7 +2,6 @@
 #include <lua5.4/lualib.h>
 #include <lua5.4/lauxlib.h>
 
-#include "libs/c/foo/foo.h"
 #include "libs/c/lfs/lfs.h"
 
 #define ENTRY_SCRIPT "./src/init.lua"
@@ -13,7 +12,6 @@ int main(int argc, char **argv) {
     luaL_openlibs(L);
 
     // load custom modules
-    open_module_foo(L);
     open_module_lfs(L);
 
     // redirect input args to the main lua script

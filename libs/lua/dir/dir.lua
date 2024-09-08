@@ -5,8 +5,8 @@
 -- Soft Dependencies: `alien`, `ffi` (either are used on Windows for copying/moving files)
 -- @module pl.dir
 
-local utils = require 'libs.lua.utils'
-local path = require 'libs.lua.path'
+local utils = require 'libs.lua.dir.utils'
+local path = require 'libs.lua.dir.path'
 local mkdir = path.mkdir
 
 local assert_string = utils.assert_string
