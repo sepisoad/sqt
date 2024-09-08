@@ -5,6 +5,6 @@
 #include <lua5.4/lauxlib.h>
 #include <lua5.4/lualib.h>
 
-int module_foo(lua_State *L);
+int open_module_foo(lua_State *L);
 
 #endif // FOO_H

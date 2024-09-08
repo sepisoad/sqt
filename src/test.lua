@@ -1,4 +1,2 @@
-print("before require")
 local foo = require('foo')
-print("after require")
-print(foo.to_uppercase("sepi"))
+print(foo.to_uppercase("suck my dick motherfucker!"))

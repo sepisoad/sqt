@@ -4,7 +4,7 @@
 
 #include "foo.h"
 
-char* c_up(const char* str) {
+static char* c_up(const char* str) {
     char* upper_str = (char*)malloc(strlen(str) + 1);
     if (!upper_str) return NULL;
 
@@ -16,7 +16,7 @@ char* c_up(const char* str) {
     return upper_str;
 }
 
-int l_up(lua_State *L) {
+static int l_up(lua_State *L) {
     const char *input = luaL_checkstring(L, 1);
     char *result = c_up(input);
     lua_pushstring(L, result);
@@ -24,13 +24,29 @@ int l_up(lua_State *L) {
     return 1;
 }
 
-// Register the functions to a Lua module
-int module_foo(lua_State *L) {
+static int define_module(lua_State *L) {
     static const luaL_Reg _module[] = {
         {"to_uppercase", l_up},
         {NULL, NULL}  // End marker
     };
 
-    luaL_newlib(L, _module);
+    // define the module
+    luaL_newlib(L, _module);    
     return 1;
+}
+
+static int register_foo(lua_State *L) {    
+    lua_getglobal(L, "package");
+    lua_getfield(L, -1, "preload");
+    lua_pushcfunction(L, define_module);
+    lua_setfield(L, -2, "foo");
+    lua_pop(L, 2);
+}
+
+int open_module_foo(lua_State *L) {
+    int res = define_module(L);
+    if (res == 1) {
+        register_foo(L);
+    }
+    return res;
 }
