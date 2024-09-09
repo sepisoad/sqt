@@ -22,7 +22,7 @@ function MODULE.cmd(lmp_img_path, lmp_plt_path, image_path)
     -- OPEN THE INPUT LMP IMAGE FILE
     img_lmp_f, err = io.open(lmp_img_path, "rb")
     if not img_lmp_f then
-      print("err: failed to open the file. reason: " .. err)
+      print("err: failed to open '" .. lmp_img_path .. "'. reason: " .. err)
       break
     end
 
@@ -40,14 +40,14 @@ function MODULE.cmd(lmp_img_path, lmp_plt_path, image_path)
 
     -- VERIFY THAT LMP IMAGE FILE IS VALID
     if img_hdr.width <= 0 or img_hdr.height <= 0 then
-      print("err: the .lmp image file is not valid")
+      print("err: the '" .. lmp_img_path .. "' file is not valid")
       break
     end
 
     -- OPEN THE INPUT LMP PALETTE FILE
     plt_lmp_f, err = io.open(lmp_plt_path, "rb")
     if not plt_lmp_f then
-      print("err: failed to open the file. reason: " .. err)
+      print("err: failed to open '" .. lmp_plt_path .. "'. reason: " .. err)
       break
     end
 
@@ -55,8 +55,8 @@ function MODULE.cmd(lmp_img_path, lmp_plt_path, image_path)
     local plt_fsize = plt_lmp_f:seek("end", 0)
 
     -- VERIFY THAT LMP PALETTE FILE IS VALID
-    if plt_fsize <= 0 then
-      print("err: the .lmp palette file is not valid")
+    if plt_fsize <= 0 then      
+      print("err: the '" .. lmp_plt_path .. "' file is not valid")
       break
     end
 
@@ -76,7 +76,11 @@ function MODULE.cmd(lmp_img_path, lmp_plt_path, image_path)
     end
 
     -- CONVERT THE LMP TO PNG
-    local png_data = png.convert(img_hdr.data, img_hdr.width, img_hdr.height, plt_data)
+    local png_data = nil
+    png_data, err = png.convert(img_hdr.data, img_hdr.width, img_hdr.height, plt_data)    
+    if err then
+      print("err: failed to convert '" .. lmp_img_path .. "' using '" .. lmp_plt_path ..  "' to png: '" .. err .. "'")
+    end
 
     -- CONSTRUCT THE OUTPUT PNG FILE PATH
     local png_dir_name = path.dirname(image_path)
@@ -84,20 +88,20 @@ function MODULE.cmd(lmp_img_path, lmp_plt_path, image_path)
     if not path.exists(png_dir_name) then
       if not dir.makepath(png_dir_name) then        
         print("err: failed to create png output directory '" .. png_dir_name .. "'")
-        return
+        break
       end
     end
 
     -- SAVE THE PNG TO FILE
     img_png_f, err = io.open(image_path, "wb")
     if not img_png_f then
-      print("err: failed to open the file. reason: " .. err)
+      print("err: failed to open '" .. image_path .. "'. reason: " .. err)
       break
     end
 
     local wsize = img_png_f:write(png_data)
     if not wsize then
-      print("err: failed to store the png data into file")
+      print("err: failed to store converted png data to '" .. image_path .. "': '" .. err .. "'")
       break
     end
 

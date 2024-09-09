@@ -8,17 +8,8 @@
 
 typedef enum {
   ERR_NONE = 0,
-  ERR_INVALID_PALETTE_SIZE,
-  ERR_FAILED_TO_SET_PNG_HEADER,
-  ERR_FAILED_TO_SET_PNG_OPTION,
-  ERR_FAILED_TO_SET_PNG_BUFFER,
-  ERR_FAILED_TO_SET_PNG_PALETTE,
-  ERR_FAILED_TO_CALC_IMG_SIZE,
-  ERR_FAILED_TO_DECODE_IMG,
-  ERR_FAILED_TO_ENCODE_DATA,
-  ERR_FAILED_TO_RETURN_DATA,
-  ERR_INVALID_ARG,
-  ERR_INVALID_TYPE,
+  ERR_SPNG_FAILED,
+  ERR_LUA_FAILED
 } err_t;
 
 typedef struct {
@@ -27,8 +18,7 @@ typedef struct {
 
 static err_t _create_palette(struct spng_plte* plte, const l_RGB_t* plt_colors, size_t plt_size) {
   if (plt_size > MAX_ALLOWED_PALETTE_SIZE) {
-    // TODO: log something
-    return ERR_INVALID_PALETTE_SIZE;
+    return ERR_SPNG_FAILED;
   }
 
   plte->n_entries = (uint32_t)plt_size;
@@ -50,7 +40,8 @@ static err_t c_convert(
   const l_RGB_t* plt_colors,
   size_t plt_size,
   void** out,
-  size_t* out_size)
+  size_t* out_size,
+  int *spng_err)
 {
   err_t err = ERR_NONE;
   spng_ctx* ctx = spng_ctx_new(SPNG_CTX_ENCODER);
@@ -70,32 +61,30 @@ static err_t c_convert(
     if (err != ERR_NONE) break;
 
     if (spng_set_ihdr(ctx, &ihdr) != 0) {
-      err = ERR_FAILED_TO_SET_PNG_BUFFER;
+      err = ERR_SPNG_FAILED;
       break;
     }
 
     if (spng_set_option(ctx, SPNG_ENCODE_TO_BUFFER, 1) != 0) {
-      err = ERR_FAILED_TO_SET_PNG_OPTION;
+      err = ERR_SPNG_FAILED;
       break;
     }
 
     if (spng_set_plte(ctx, &plte) != 0) {
-      err = ERR_FAILED_TO_SET_PNG_PALETTE;
+      err = ERR_SPNG_FAILED;
       break;
     }
 
     if (spng_encode_image(ctx, img, img_size, SPNG_FMT_PNG, SPNG_ENCODE_FINALIZE) != 0) {
-      err = ERR_FAILED_TO_SET_PNG_OPTION;
+      err = ERR_SPNG_FAILED;
       break;
     }
 
     void* png_buffer;
     size_t png_size;
-    int spng_err;
-    *out = spng_get_png_buffer(ctx, out_size, &spng_err);
-    if (spng_err && spng_err != 0) {
-      printf("SPNG ERR: %s\n", spng_strerror(spng_err));
-      err = ERR_FAILED_TO_ENCODE_DATA;
+    *out = spng_get_png_buffer(ctx, out_size, spng_err);
+    if (*spng_err != 0) {      
+      err = ERR_SPNG_FAILED;
       break;
     }
   } while (0);
@@ -115,26 +104,25 @@ static int l_convert(lua_State* L) {
   do {
     const char* img_buf = luaL_checklstring(L, 1, &img_size);
     if (img_buf == NULL) {
-      err = ERR_INVALID_ARG;
+      err = ERR_LUA_FAILED;
       break;
     }
 
-
     int img_width = luaL_checkinteger(L, 2);
     if (img_width <= 0) {
-      err = ERR_INVALID_ARG;
+      err = ERR_LUA_FAILED;
       break;
     }
 
     int img_height = luaL_checkinteger(L, 3);
     if (img_height <= 0) {
-      err = ERR_INVALID_ARG;
+      err = ERR_LUA_FAILED;
       break;
     }
 
     plt_size = (size_t)lua_rawlen(L, 4);
     if (plt_size <= 0) {
-      err = ERR_INVALID_ARG;
+      err = ERR_LUA_FAILED;
       break;
     }
 
@@ -144,13 +132,13 @@ static int l_convert(lua_State* L) {
     for (int i = 0; i < plt_size; ++i) {
       int typ = lua_rawgeti(L, 4, i + 1);
       if (typ != LUA_TTABLE) {
-        err = ERR_INVALID_ARG;
+        err = ERR_LUA_FAILED;
         break;
       }
 
       typ = lua_getfield(L, -1, "r");
       if (typ != LUA_TNUMBER) {
-        err = ERR_INVALID_ARG;
+        err = ERR_LUA_FAILED;
         break;
       }
       plt_colors[i].r = (unsigned char)lua_tointeger(L, -1);
@@ -158,7 +146,7 @@ static int l_convert(lua_State* L) {
 
       typ = lua_getfield(L, -1, "g");
       if (typ != LUA_TNUMBER) {
-        err = ERR_INVALID_ARG;
+        err = ERR_LUA_FAILED;
         break;
       }
       plt_colors[i].g = (unsigned char)lua_tointeger(L, -1);
@@ -166,7 +154,7 @@ static int l_convert(lua_State* L) {
 
       typ = lua_getfield(L, -1, "b");
       if (typ != LUA_TNUMBER) {
-        err = ERR_INVALID_ARG;
+        err = ERR_LUA_FAILED;
         break;
       }
       plt_colors[i].b = (unsigned char)lua_tointeger(L, -1);
@@ -174,6 +162,10 @@ static int l_convert(lua_State* L) {
 
       lua_pop(L, 1); // Remove the table element
     }
+
+    lua_pushnil(L); // the data set to nil
+
+    int spng_err;
 
     err = c_convert(
       img_buf,
@@ -183,30 +175,35 @@ static int l_convert(lua_State* L) {
       plt_colors,
       plt_size,
       &out,
-      &out_size
+      &out_size,
+      &spng_err
     );
+
     if (err != ERR_NONE) {
+      printf("-=-=-=-=-=[%d]=-=-=-=-=-=-\n", err);
+      lua_pushnil(L); // set the return data to nil
+
+      if (err == ERR_SPNG_FAILED) lua_pushstring(L, spng_strerror(spng_err)); // the error message
+      else if (err == ERR_LUA_FAILED) lua_pushstring(L, "something went wrong in the lua wrapper!"); // the error message
+      else lua_pushstring(L, "i have no idea what went wrong!"); // the error message
+
       break;
     }
 
-    // lua_settop(L, 0);
-    
-    if (lua_pushlstring(L, out, out_size) == NULL) {
-      err = ERR_FAILED_TO_RETURN_DATA;
-      break;
-    }
-    
+    lua_pushlstring(L, out, out_size); // set the actual return data
+    lua_pushnil(L); // set the return error to nil
+   
   } while (0);
 
   if (plt_colors) free(plt_colors);
   if (out) free(out);
 
   if (err != ERR_NONE) {
-    printf("err: spng module: code[%d]\n", err);
-    return err;
+    printf("err <spng-l>: code[%d]\n", err);
+    return 2;
   }
 
-  return 1;
+  return 2;
 }
 
 static const struct luaL_Reg lib[] = {
@@ -228,10 +225,10 @@ static int register_foo(lua_State* L) {
   lua_pop(L, 2);
 }
 
-MODULE_EXPORT int open_module_spng(lua_State * L) {
+MODULE_EXPORT int open_module_spng(lua_State* L) {
   int res = define_module(L);
-    if (res == 1) {
-        register_foo(L);
-    }
-    return res;
+  if (res == 1) {
+    register_foo(L);
+  }
+  return res;
 }

@@ -40,7 +40,6 @@ int main(int argc, char** argv) {
   //   ");
   // }
 
-
   // clean up
   lua_close(L);
   return 0;
