@@ -8,7 +8,7 @@ MODULE.defs = {
   HEADER_ITEM_SIZE = 56 + 4 + 4, -- name + pos + len
 }
 
-function MODULE.unpak(pak_file_path, extraction_path)
+function MODULE.cmd(pak_file_path, extraction_path)
   -- OPEN THE INPUT PAK FILE
   local f, err = io.open(pak_file_path, "rb")
   if not f then
@@ -23,10 +23,10 @@ function MODULE.unpak(pak_file_path, extraction_path)
   hdr.code = f:read(4)
 
   -- READ THE DIR OFFSET NUMBE FROM FILE INTO HEADER AND MOVE 8 BYTES
-  hdr.ofs = string.unpack("i", f:read(4))
+  hdr.ofs = string.unpack("=i", f:read(4))
 
   -- READ THE DIR LEN NUMBE FROM FILE INTO HEADER AND MOVE 8 BYTES
-  hdr.len = string.unpack("i", f:read(4))
+  hdr.len = string.unpack("=i", f:read(4))
 
   -- VERIFY THE PAK FILE IS VALID
   if hdr.code ~= "PACK" or
@@ -48,8 +48,8 @@ function MODULE.unpak(pak_file_path, extraction_path)
   for idx = 1, cnt do
     local item = { name = "", pos = 0, len = 0 }
     item.name = string.unpack("z", f:read(56))
-    item.pos = string.unpack("i", f:read(4))
-    item.len = string.unpack("i", f:read(4))
+    item.pos = string.unpack("=i", f:read(4))
+    item.len = string.unpack("=i", f:read(4))
     items[idx] = item
   end
 
@@ -66,7 +66,7 @@ function MODULE.unpak(pak_file_path, extraction_path)
   -- LOOP OVER THE LIST AND READ THE DATA AND SAVE INTO EXTRACTION PATH
   for _, item in pairs(items) do
     -- CONSTRUCT PAK ITEM PATH
-    local p = path.join(extraction_path, item.name)    
+    local p = path.join(extraction_path, item.name)
     local base = path.dirname(p)
 
     -- CREATE PAK ITEM DIRECTORY IF NEEDED
@@ -96,6 +96,5 @@ function MODULE.unpak(pak_file_path, extraction_path)
 
   f:close()
 end
-
 
 return MODULE

@@ -22,7 +22,15 @@
         "stack": "c",
         "foo.h": "c",
         "lua.h": "c",
-        "ctype.h": "c"
+        "ctype.h": "c",
+        "string.h": "c",
+        "bitset": "c",
+        "initializer_list": "c",
+        "__hash_table": "c",
+        "__split_buffer": "c",
+        "deque": "c",
+        "unordered_map": "c",
+        "module.h": "c"
     },
     "C_Cpp.default.compilerPath": "/usr/bin/clang-14"
 }

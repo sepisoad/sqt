@@ -1180,29 +1180,10 @@ static const struct luaL_Reg fslib[] = {
   { NULL, NULL },
 };
 
-LFS_EXPORT int luaopen_lfs(lua_State * L) {
-  dir_create_meta(L);
-  lock_create_meta(L);
-  new_lib(L, fslib);
-  lua_pushvalue(L, -1);
-  lua_setglobal(L, LFS_LIBNAME);
-  set_info(L);
-  return 1;
-}
-
 static int define_module(lua_State *L) {
-    // static const luaL_Reg _module[] = {
-    //     {"to_uppercase", l_up},
-    //     {NULL, NULL}  // End marker
-    // };
-
-    // // define the module
-    // luaL_newlib(L, _module);    
-    // return 1;
-
     dir_create_meta(L);
     lock_create_meta(L);
-    new_lib(L, fslib);
+    luaL_newlib(L, fslib);
     return 1;
 }
 
@@ -1214,7 +1195,7 @@ static int register_foo(lua_State *L) {
     lua_pop(L, 2);
 }
 
-LFS_EXPORT int open_module_lfs(lua_State * L) {
+MODULE_EXPORT int open_module_lfs(lua_State * L) {
   int res = define_module(L);
     if (res == 1) {
         register_foo(L);
