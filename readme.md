@@ -2,7 +2,7 @@
 
 - [x] PAK
 - [ ] NAV
-- [ ] LMP
+- [x] LMP
 - [ ] WAD (TEXTURES)
 - [ ] BSP
 - [ ] LIT

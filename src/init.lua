@@ -1,6 +1,5 @@
 local unpak = require('src.cmd.unpak')
 local unlmp = require('src.cmd.unlmp')
-local pprint = require("libs.lua.pprint.pprint")
 local argparse = require("libs.lua.argparse.argparse")
 
 -- DEFINE ARGS
@@ -17,6 +16,7 @@ cmd_unpak:action(function(args)
   unpak.cmd(args.input, args.output)
 end)
 
+-- DEFINE THE UNLMP COMMAND
 local cmd_unlmp = parser:command("unlmp")
 cmd_unlmp:argument("input", "define where to load the .LMP image file from")
 cmd_unlmp:argument("palette", "define where to load the .LMP palette file from")
