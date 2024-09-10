@@ -5,16 +5,8 @@ local path = require('libs.lua.dir.path')
 local pprint = require('libs.lua.pprint.pprint')
 
 local MODULE = {}
+local DEFS = {}
 
-MODULE.defs = {
-  -- HEADER_ITEM_SIZE = 56 + 4 + 4, -- name + pos + len
-}
-
--- unlmp command that converts a .lmp file into an image
--- @param lmp_img_path: is the input .lmp image file
--- @param lmp_plt_path: is the input .lmp palette file (it's needed to encode the colors)
--- this function is a command and does not return any value,
--- it either get the job done or fails
 function MODULE.cmd(lmp_img_path, lmp_plt_path, image_path)
   local img_lmp_f, plt_lmp_f, img_png_f, err
 
@@ -105,8 +97,7 @@ function MODULE.cmd(lmp_img_path, lmp_plt_path, image_path)
       break
     end
 
-    break
-  until false
+  until true
 
   -- CLEANUP
   if img_png_f then img_png_f:close() end

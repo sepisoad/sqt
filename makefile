@@ -14,7 +14,6 @@ SRC = \
 	libs/c/spng/module.c \
 	src/main.c
 
-
 clean:
 	rm -rf UNPAK
 	rm $(BIN)
@@ -35,3 +34,16 @@ unlmp:
 		ignore/UNPAK/gfx/bigbox.lmp \
 		ignore/UNPAK/gfx/palette.lmp \
 		ignore/UNLMP/bigbox.png
+
+xunlmp: # this converts a wad file to png
+	@./$(BIN) \
+		unlmp \
+		ignore/UNWAD/FACE_P1 \
+		ignore/UNPAK/gfx/palette.lmp \
+		ignore/UNLMP/WAD/FACE_P1.png
+
+unwad:
+	@./$(BIN) \
+		unwad \
+		ignore/UNPAK/gfx.wad \
+		ignore/UNWAD
