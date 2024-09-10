@@ -1,3 +1,8 @@
+# Sepi's Quake Tools (qtools)
+
+TODO: add some introduction
+TODO: mention the 3rd party codes and licenses and links
+
 # TODOs
 
 - learn about these formats:
