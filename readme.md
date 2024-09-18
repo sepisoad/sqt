@@ -1,4 +1,4 @@
-# Sepi's Quake Tools (qtools)
+# Sepi's Quake Tools (SQT)
 
 TODO: add some introduction
 TODO: mention the 3rd party codes and licenses and links
