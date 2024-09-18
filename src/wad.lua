@@ -8,14 +8,14 @@ local MODULE = {}
 local DEFS = {
   WAD_FILE_ID = "WAD2",
   WAD_ITEM_TYPE = {
-    NONE    = 0,  -- not used anywher in quake engine!
-    LABEL   = 1,  -- not used anywher in quake engine!
-    LUMPY   = 64, -- not used anywher in quake engine!
-    PALETTE = 64, -- not used anywher in quake engine!
-    QTEX    = 65, -- not used anywher in quake engine!
+    NONE    = 0,      -- not used anywher in quake engine!
+    LABEL   = 1,      -- not used anywher in quake engine!
+    LUMPY   = 64,     -- not used anywher in quake engine!
+    PALETTE = 64,     -- not used anywher in quake engine!
+    QTEX    = 65,     -- not used anywher in quake engine!
     QPIC    = 66,
-    SOUND   = 67, -- not used anywher in quake engine!
-    MIPTEX  = 68, -- not used anywher in quake engine!
+    SOUND   = 67,     -- not used anywher in quake engine!
+    MIPTEX  = 68,     -- not used anywher in quake engine!
   }
 }
 
@@ -32,9 +32,9 @@ function MODULE.cmd(wad_path, out_dir)
 
     -- PREPARE THE WAD HEADER
     local wad_hdr = {
-      code      = "", -- 1 byte:  wad file identifier code
-      lumps_cnt = 0,  -- 4 bytes: wad file lumps count
-      itbl_ofs  = 0   -- 4 bytes: wad file info table offset
+      code      = "",       -- 1 byte:  wad file identifier code
+      lumps_cnt = 0,        -- 4 bytes: wad file lumps count
+      itbl_ofs  = 0         -- 4 bytes: wad file info table offset
     }
 
     wad_hdr.code = wad_f:read(4)
@@ -56,24 +56,27 @@ function MODULE.cmd(wad_path, out_dir)
     local lmp_infos = {}
     for idx = 1, wad_hdr.lumps_cnt, 1 do
       local lmp_hdr = {
-        pos   = 0,  -- 4  bytes:  lump file position
-        size  = 0,  -- 4  bytes:  lump file size on disk
-        xsize = 0,  -- 4  bytes:  lump file uncompressed size
-        typ   = "", -- 1  byte:   lump file type
-        cmpr  = "", -- 1  byte:   lump file compression type
-        pad1  = "", -- 1  byte:   padding (not to be used)
-        pad2  = "", -- 1  byte:   padding (not to be used)
-        name  = ""  -- 16 bytes:  lump file name
+        pos   = 0,          -- 4  bytes:  lump file position
+        size  = 0,          -- 4  bytes:  lump file size on disk
+        xsize = 0,          -- 4  bytes:  lump file uncompressed size
+        typ   = "",         -- 1  byte:   lump file type
+        cmpr  = "",         -- 1  byte:   lump file compression type
+        pad1  = "",         -- 1  byte:   padding (not to be used)
+        pad2  = "",         -- 1  byte:   padding (not to be used)
+        name  = ""          -- 16 bytes:  lump file name
       }
 
       lmp_hdr.pos = string.unpack("=i", wad_f:read(4))
       lmp_hdr.size = string.unpack("=i", wad_f:read(4))
       lmp_hdr.xsize = string.unpack("=i", wad_f:read(4))
-      lmp_hdr.typ = wad_f:read(1)
-      lmp_hdr.cmpr = wad_f:read(1)
+      lmp_hdr.typ = string.unpack("=c1", wad_f:read(1))       -- cn: a fixed-sized string with n bytes
+      lmp_hdr.cmpr = string.unpack("=B", wad_f:read(1))       -- an unsigned byte
       lmp_hdr.pad1 = wad_f:read(1)
       lmp_hdr.pad2 = wad_f:read(1)
-      lmp_hdr.name = string.unpack("z", wad_f:read(16)) -- zero terminated c string
+      lmp_hdr.name = string.unpack("z", wad_f:read(16))       -- zero terminated c string
+
+      -- pprint(string.format("%s # %s # %s # (%d , %d) ", lmp_hdr.name, lmp_hdr.typ, lmp_hdr.cmpr, lmp_hdr.size, lmp_hdr.xsize))
+      pprint(lmp_hdr.name .. " : " .. lmp_hdr.typ .. " : " .. lmp_hdr.size)
 
       table.insert(lmp_infos, lmp_hdr)
     end
@@ -114,7 +117,7 @@ function MODULE.cmd(wad_path, out_dir)
       -- READ WAD ITEM DATA FROM INPUT
       wad_f:seek("set", inf.pos)
       -- !!! i'm not sure wether to use size or xsize!
-      local buf = wad_f:read(inf.size) -- TODO:sepi: handle the read error
+      local buf = wad_f:read(inf.size)       -- TODO:sepi: handle the read error
       if not buf then
         print("err: failed to read data from input wad item '" .. inf.name .. "'. reason: " .. ierr)
         itm_f:close()
@@ -129,7 +132,6 @@ function MODULE.cmd(wad_path, out_dir)
       end
       itm_f:close()
     end
-
   until true
 
   -- CLEANUP

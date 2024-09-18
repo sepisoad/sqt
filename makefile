@@ -21,29 +21,52 @@ clean:
 build: 
 	$(CC) $(DEFS) $(CFLAGS) $(SRC) -o $(BIN) $(LIBS) $(INC) -lm
 
-# debug only targets
-unpak:
+### ===============================================
+### DEBUG TARGETS
+### ===============================================
+
+pak_info:
 	@./$(BIN) \
-		unpak \
-		/home/sepi/Projects/internet/games/quake/game/id1/pak0.pak \
-		ignore/UNPAK
+		pak \
+		info \
+		-i /home/sepi/Projects/internet/games/quake/game/id1/pak0.pak
+
+pak_list:
+	@./$(BIN) \
+		pak \
+		list \
+		-i /home/sepi/Projects/internet/games/quake/game/id1/pak0.pak
+
+pak_extract:
+	@./$(BIN) \
+		pak \
+		extract \
+		-i /home/sepi/Projects/internet/games/quake/game/id1/pak0.pak \
+		-o ignore/quake/PAK
+
+pak_create:
+	@./$(BIN) \
+		pak \
+		create \
+		-i ignore/quake/MY_PAK \
+		-o ignore/quake/mypak.PAK
+
 
 unlmp:
 	@./$(BIN) \
 		unlmp \
-		ignore/UNPAK/gfx/bigbox.lmp \
-		ignore/UNPAK/gfx/palette.lmp \
-		ignore/UNLMP/bigbox.png
-
-xunlmp: # this converts a wad file to png
-	@./$(BIN) \
-		unlmp \
-		ignore/UNWAD/FACE_P1 \
-		ignore/UNPAK/gfx/palette.lmp \
-		ignore/UNLMP/WAD/FACE_P1.png
+		ignore/quake/PAK/gfx/bigbox.lmp \
+		ignore/quake/PAK/gfx/palette.lmp \
+		ignore/quake/sepi/lmp/bigbox.png
 
 unwad:
 	@./$(BIN) \
 		unwad \
-		ignore/UNPAK/gfx.wad \
-		ignore/UNWAD
+		ignore/quake/PAK/gfx/base.wad \
+		ignore/quake/WAD/base
+
+xunwad:
+	@./$(BIN) \
+		unwad \
+		ignore/quake/PAK/gfx/all.wad \
+		ignore/quake/WAD/all
