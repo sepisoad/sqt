@@ -5,7 +5,7 @@ CFLAGS = $(DEBUG_FLAGS)
 DEFS = -DSPNG_USE_MINIZ
 LIBS = -llua5.4
 INC = -I. 
-BIN = qtools
+BIN = sqt
 
 SRC = \
 	libs/c/minizip/miniz.c \

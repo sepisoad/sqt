@@ -166,7 +166,6 @@ local print_pak_info = function(pak_path, items, items_count)
   local names = {}
   for index, item in pairs(items) do names[index] = item.Name end
   local mapping = container.get_container_files_mapping(names)
-  pprint(mapping)
 
   print("--- Information ------------------------------------------")
   print(string.format("  ◉ Path:            %s", pak_path))

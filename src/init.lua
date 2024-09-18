@@ -4,7 +4,7 @@ local _wad = require('src.wad')
 local argparse = require("libs.lua.argparse.argparse")
 
 local parser = argparse()
-    :name "qtools"
+    :name "sqt"
     :description "A set of tools to work with quake (I) files"
     :epilog "For more info, see http://sepi.me/qtools"
 
