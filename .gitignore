@@ -3,3 +3,4 @@ ignore
 
 # files
 sqt
+src/debug.lua

@@ -1,6 +1,8 @@
 local png = require('spng')
-local dir = require('libs.lua.dir.dir')
-local path = require('libs.lua.dir.path')
+-- local dir = require('libs.lua.dir.dir') -- TODOL
+-- local path = require('libs.lua.dir.path')
+local dir = {}
+local path = {}
 local pprint = require('libs.lua.pprint.pprint')
 
 local MODULE = {}

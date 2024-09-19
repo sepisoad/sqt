@@ -1,13 +1,11 @@
 local fs = require('lfs')
+local mfs = require('libs.lua.minifs.minifs')
 local log = require('libs.lua.log.log')
-local path = require('libs.lua.dir.path')
-local dir = require('libs.lua.dir.dir')
-local pprint = require('libs.lua.pprint.pprint')
 
 
 local create_dir_if_doesnt_exist = function(p)
-  if not path.exists(p) then
-    if not dir.makepath(p) then
+  if not mfs.exists(p) then
+    if not mfs.mkrdir(p) then
       log.err(string.format("failed to create extraction directory at '%s'", p))
       os.exit(1)
     end
@@ -15,13 +13,13 @@ local create_dir_if_doesnt_exist = function(p)
 end
 
 local join_item_path = function (dir, item)
-  local full = path.join(dir, item)
-  local base = path.dirname(full)
+  local full = mfs.join(dir, item)
+  local base = mfs.dirname(full)
   return full, base
 end
 
 local get_file_disk_size = function (p)
-  if not path.exists(p) then
+  if not mfs.exists(p) then
     log.err(string.format("failed to open '%s'", p))
     os.exit(1)
   end

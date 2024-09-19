@@ -162,9 +162,10 @@ end
 --- -----------------------------------------------
 ---@param dir_name string
 ---@param item_name string
----@return string
+---@return string, string
 local get_extraction_file_path = function(dir_name, item_name)
   log.dbg("constracting pak item extraction file path")
+
 
   return utils.join_item_path(dir_name, item_name)
 end
@@ -244,6 +245,11 @@ local print_pak_info = function(pak_path, items, items_count)
   end
 end
 
+--- -----------------------------------------------
+---@param input_dir_path string 
+local create_pak_items_header_from_dir = function (input_dir_path)
+  
+end
 --- ===============================================
 --- info command
 --- ===============================================
@@ -294,10 +300,11 @@ end
 --- TODO
 --- ===============================================
 ---@param input_dir_path string
----@param output_dir_path string
-local cmd_create = function(input_dir_path, output_dir_path)
-  log.err("not implemented yet!") -- TODO
-  os.exit(1)
+---@param output_pak_path string
+local cmd_create = function(input_dir_path, output_pak_path)
+  local pak_items_header = create_pak_items_header_from_dir(input_dir_path)
+  local pak_header = create_pak_header_from_pak_items_header()
+  create_pak_file(pak_header, pak_items_header, output_pak_path)
 end
 
 --- ===============================================

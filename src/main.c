@@ -29,16 +29,8 @@ int main(int argc, char** argv) {
     lua_pop(L, 1);
   }
 
-  // run the entry script
-  // if (luaL_loadfile(L, "src/cmd/unlmp.lua") == LUA_OK) {
-  //   luaL_dostring(L, "\
-  //   print('---[1]---')\
-  //   local unlmp = require('src.cmd.unlmp')\
-  //   print('---[2]---')\
-  //   unlmp.cmd('ignore/UNPAK/gfx/bigbox.lmp', 'ignore/UNPAK/gfx/palette.lmp', 'ignore/UNLMP/bigbox.png')\
-  //   print('---[3]---')\
-  //   ");
-  // }
+  // run the debug script
+  // luaL_dofile(L, "src/debug.lua");
 
   // clean up
   lua_close(L);
