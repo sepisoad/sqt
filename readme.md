@@ -1,5 +1,7 @@
 # Sepi's Quake Tools (SQT)
 
+![logo](res/sqt.png)
+
 SQT is a set of commands to work with quake 1 files.
 
 The code is licensed under GNU general public license version 3 (GPLv3)
