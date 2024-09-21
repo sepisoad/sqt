@@ -1,13 +1,23 @@
 local log = require('libs.lua.log.log')
 local utils = require('libs.lua.utils.path')
 local container = require('libs.lua.utils.container')
-local pprint = require('libs.lua.pprint.pprint')
 
 --- ===============================================
+--- constants
+--- ===============================================
 
----- HEADER_ITEM_SIZE
----@type integer
 local HEADER_ITEM_SIZE = 56 + 4 + 4 -- name + pos + len
+local PAK_HEADER_SIZE = 12
+local PAK_HEADER_CODE_SIZE = 4
+local PAK_HEADER_OFFSET_SIZE = 4
+local PAK_HEADER_LENGTH_SIZE = 4
+local PAK_ITEM_HEADER_NAME_SIZE = 56
+local PAK_ITEM_HEADER_POSITION_SIZE = 4
+local PAK_ITEM_HEADER_LENGTH_SIZE = 4
+
+--- ===============================================
+--- types
+--- ===============================================
 
 --- PakHeader struct
 ---@class PakHeader
@@ -66,9 +76,9 @@ local load_pak_file_header = function(file)
   ---@diagnostic disable-next-line: missing-fields
   local header = {}
 
-  header.Code = file:read(4)
-  header.Offset = string.unpack("=i", file:read(4))
-  header.Length = string.unpack("=i", file:read(4))
+  header.Code = file:read(PAK_HEADER_CODE_SIZE)
+  header.Offset = string.unpack("=i", file:read(PAK_HEADER_OFFSET_SIZE))
+  header.Length = string.unpack("=i", file:read(PAK_HEADER_LENGTH_SIZE))
 
   return header
 end
@@ -133,9 +143,9 @@ local load_pak_items_header = function(file, items_count)
     ---@diagnostic disable-next-line: missing-fields
     local item = {}
 
-    item.Name = string.unpack("z", file:read(56))
-    item.Position = string.unpack("=i", file:read(4))
-    item.Length = string.unpack("=i", file:read(4))
+    item.Name = string.unpack("z", file:read(PAK_ITEM_HEADER_NAME_SIZE))
+    item.Position = string.unpack("=i", file:read(PAK_ITEM_HEADER_POSITION_SIZE))
+    item.Length = string.unpack("=i", file:read(PAK_ITEM_HEADER_LENGTH_SIZE))
 
     items[index] = item
   end
@@ -222,7 +232,6 @@ local print_items_name = function(items)
   end
 end
 
-
 --- -----------------------------------------------
 ---@param pak_path string
 ---@param items PakItemHeader[]
@@ -262,7 +271,7 @@ local create_pak_items_header_from_files = function(files)
   ---@type PakItemHeader[]
   local pak_items_header = {}
 
-  local current_position = 12
+  local current_position = PAK_HEADER_SIZE
 
   for _, file in ipairs(files) do
     ---@type PakItemHeader
@@ -288,7 +297,7 @@ local create_pak_header_from_pak_items_header = function(items_header)
   ---@type PakHeader
   local pak_header = {
     Code = "PACK",
-    Offset = 12,
+    Offset = PAK_HEADER_SIZE,
     Length = #items_header * HEADER_ITEM_SIZE
   }
 
@@ -344,6 +353,7 @@ local cmd_info = function(pak_file_path)
   seek_to_pak_items_header(pak_f, header)
   local items_header = load_pak_items_header(pak_f, items_count)
   print_pak_info(pak_file_path, items_header, items_count)
+  pak_f:close()
 end
 
 --- ===============================================

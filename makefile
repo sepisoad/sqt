@@ -4,7 +4,7 @@ RELEASE_FLAGS = -O3
 CFLAGS = $(DEBUG_FLAGS)
 DEFS = -DSPNG_USE_MINIZ
 LIBS = -llua5.4
-INC = -I. 
+INC = -I.
 BIN = sqt
 
 SRC = \
@@ -18,13 +18,14 @@ clean:
 	rm -rf UNPAK
 	rm $(BIN)
 
-build: 
+build:
 	$(CC) $(DEFS) $(CFLAGS) $(SRC) -o $(BIN) $(LIBS) $(INC) -lm
 
 ### ===============================================
 ### DEBUG TARGETS
 ### ===============================================
 
+### ===============================================
 pak_info:
 	@./$(BIN) \
 		pak \
@@ -51,34 +52,12 @@ pak_create:
 		-i ignore/quake/PAK/ \
 		-o ignore/mypak.PAK
 
-pak_info_me:
+### ===============================================
+lmp_info:
 	@./$(BIN) \
-		pak \
+		lmp \
 		info \
-		-i ignore/mypak.PAK
+		-i ignore/quake/PAK/gfx/bigbox.lmp
 
 
-pak_list_me:
-	@./$(BIN) \
-		pak \
-		list \
-		-i ignore/mypak.PAK
-
-unlmp:
-	@./$(BIN) \
-		unlmp \
-		ignore/quake/PAK/gfx/bigbox.lmp \
-		ignore/quake/PAK/gfx/palette.lmp \
-		ignore/quake/sepi/lmp/bigbox.png
-
-unwad:
-	@./$(BIN) \
-		unwad \
-		ignore/quake/PAK/gfx/base.wad \
-		ignore/quake/WAD/base
-
-xunwad:
-	@./$(BIN) \
-		unwad \
-		ignore/quake/PAK/gfx/all.wad \
-		ignore/quake/WAD/all
+### ===============================================

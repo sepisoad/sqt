@@ -86,8 +86,7 @@ lmp_info:action(function (args)
     print(lmp_info:get_help())
     os.exit(1)
   end
-  -- TODO: implement this
-  print("NOT IMPLEMENTED YET!")
+  _lmp.info(args.input)
 end)
 
 -- ---------------------------------
@@ -101,7 +100,7 @@ lmp_decode:action(function (args)
     print(lmp_decode:get_help())
     os.exit(1)
   end
-  lmp.cmd(args.input, args.palette, args.output)
+  _lmp.decode(args.input, args.palette, args.output)
 end)
 
 -- ---------------------------------
@@ -115,7 +114,7 @@ lmp_encode:action(function (args)
     print(lmp_encode:get_help())
     os.exit(1)
   end
-  print("NOT IMPLEMENTED YET!")
+  _lmp.encode(args.input, args.palette, args.output)
 end)
 
 -- ==================================================================
