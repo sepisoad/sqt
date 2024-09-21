@@ -20,10 +20,7 @@ local get_container_files_mapping = function(container)
     idx = idx + 1
   end
 
-  table.sort(sorted, function(a, b)
-    return a[2] > b[2]
-  end)
-
+  table.sort(sorted, function(a, b) return a[2] > b[2] end)
   return sorted
 end
 

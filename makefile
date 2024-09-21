@@ -48,8 +48,21 @@ pak_create:
 	@./$(BIN) \
 		pak \
 		create \
-		-i ignore/quake/ \
+		-i ignore/quake/PAK/ \
 		-o ignore/mypak.PAK
+
+pak_info_me:
+	@./$(BIN) \
+		pak \
+		info \
+		-i ignore/mypak.PAK
+
+
+pak_list_me:
+	@./$(BIN) \
+		pak \
+		list \
+		-i ignore/mypak.PAK
 
 unlmp:
 	@./$(BIN) \

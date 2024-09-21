@@ -21,7 +21,7 @@ local PakHeader = {}
 ---@field Name string (56 bytes)
 ---@field Position integer (4 bytes)
 ---@field Length integer (4 bytes)
-local PakHeader = {}
+local PakItemHeader = {}
 
 --- ===============================================
 --- helper functions
@@ -111,7 +111,7 @@ local read_pak_item_data = function(file, header)
   file:seek("set", header.Position)
   local data = file:read(header.Length)
   if not data then
-    log.err(string.format("failed to read data from input pak item '%s'", name))
+    log.err(string.format("failed to read data from input pak item '%s'", header.Name))
     os.exit(1)
   end
 
@@ -240,16 +240,98 @@ local print_pak_info = function(pak_path, items, items_count)
   print(string.format("  ◉ Number of items: %d", items_count))
   print(string.format("  ◉ Size on disk:    %d bytes", disk_size))
   print("--- Items count per category -----------------------------")
-  for idx, item in ipairs(mapping) do
+  for _, item in ipairs(mapping) do
     print(string.format("  ◉ %8s: %d", item[1], item[2]))
   end
 end
 
 --- -----------------------------------------------
----@param input_dir_path string 
-local create_pak_items_header_from_dir = function (input_dir_path)
-  
+---@param input_dir_path string
+local get_all_files_in_a_directory_recursively = function(input_dir_path)
+  log.dbg(string.format("listing all files in '%s' directory before creating .PAK file from it", input_dir_path))
+
+  return utils.list_files_in_dir(input_dir_path) or {}
 end
+
+--- -----------------------------------------------
+---@param files string[]
+---@return PakItemHeader[]
+local create_pak_items_header_from_files = function(files)
+  log.dbg("creating .PAK items header info from the files in the source directory")
+
+  ---@type PakItemHeader[]
+  local pak_items_header = {}
+
+  local current_position = 12
+
+  for _, file in ipairs(files) do
+    ---@type PakItemHeader
+    local pak_item_header = {
+      Name = file,
+      Length = utils.get_file_disk_size(file),
+      Position = current_position
+    }
+
+    table.insert(pak_items_header, pak_item_header)
+    current_position = current_position + pak_item_header.Length
+  end
+
+  return pak_items_header
+end
+
+--- -----------------------------------------------
+---@param items_header PakItemHeader[]
+---@return PakHeader
+local create_pak_header_from_pak_items_header = function(items_header)
+  log.dbg(string.format("creating .PAK header info from its items header info"))
+
+  ---@type PakHeader
+  local pak_header = {
+    Code = "PACK",
+    Offset = 12,
+    Length = #items_header * HEADER_ITEM_SIZE
+  }
+
+  for _, item in ipairs(items_header) do
+    pak_header.Offset = pak_header.Offset + item.Length
+  end
+
+  return pak_header
+end
+
+--- -----------------------------------------------
+---@param pak_header PakHeader
+---@param pak_items_header PakItemHeader[]
+---@param input_dir_path string
+---@param output_pak_path string
+local create_pak_file = function(pak_header, pak_items_header, input_dir_path, output_pak_path)
+  log.dbg(string.format("creating the actual .PAK file inti '%s'", output_pak_path))
+
+  local pak_f, err = io.open(output_pak_path, "wb")
+  if not pak_f then
+    log.err(string.format("failed to open '%s' for writing .PAK data", output_pak_path), err)
+    os.exit(1)
+  end
+
+  pak_f:write(pak_header.Code)
+  pak_f:write(string.pack("=i", pak_header.Offset))
+  pak_f:write(string.pack("=i", pak_header.Length))
+
+  for _, pak_item_header in ipairs(pak_items_header) do
+    local data = utils.read_file_data(pak_item_header.Name)
+    pak_f:write(data)
+  end
+
+  for _, pak_item_header in ipairs(pak_items_header) do
+    local new_name = utils.trim_path(pak_item_header.Name, input_dir_path)
+    pak_f:write(string.pack("c56", new_name))
+    pak_f:write(string.pack("=i", pak_item_header.Position))
+    pak_f:write(string.pack("=i", pak_item_header.Length))
+  end
+
+  pak_f:close()
+end
+
 --- ===============================================
 --- info command
 --- ===============================================
@@ -302,9 +384,10 @@ end
 ---@param input_dir_path string
 ---@param output_pak_path string
 local cmd_create = function(input_dir_path, output_pak_path)
-  local pak_items_header = create_pak_items_header_from_dir(input_dir_path)
-  local pak_header = create_pak_header_from_pak_items_header()
-  create_pak_file(pak_header, pak_items_header, output_pak_path)
+  local files = get_all_files_in_a_directory_recursively(input_dir_path)
+  local pak_items_header = create_pak_items_header_from_files(files)
+  local pak_header = create_pak_header_from_pak_items_header(pak_items_header)
+  create_pak_file(pak_header, pak_items_header, input_dir_path, output_pak_path)
 end
 
 --- ===============================================

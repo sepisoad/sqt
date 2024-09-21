@@ -122,10 +122,10 @@ fs.mkrdir = function(dir)
 
   local failed = {}
   for idx, _ in ipairs(variations) do
-    local segment = table.concat(variations[idx])    
+    local segment = table.concat(variations[idx])
     local ok, err = fs.mkdir(segment)
     if ok == nil and err ~= nil then
-      table.insert(failed, segment)  
+      table.insert(failed, segment)
     else
       break
     end
@@ -140,7 +140,7 @@ fs.mkrdir = function(dir)
 
   return true, nil
 end
-fs.join = function (...)
+fs.join = function(...)
   local sep = fs.separator()
   local items = {}
 
@@ -151,7 +151,7 @@ fs.join = function (...)
 
   return table.concat(items, sep)
 end
-fs.dirname = function (p)
+fs.dirname = function(p)
   local mode = fs.type(p)
   if mode == "directory" then
     return p
@@ -162,7 +162,7 @@ fs.dirname = function (p)
 
   return p:match(rx)
 end
-fs.filename = function (p)
+fs.filename = function(p)
   local mode = fs.type(p)
   if mode == "directory" then
     return nil
@@ -300,6 +300,65 @@ fs.files = function(dir, fullpath)
       return entry
     end
   end
+end
+fs.rfiles = function(dir, fullpath)
+  local current = dir
+  local files = {}
+  local dirs = {}
+  local lookup = {}
+
+  if string.sub(current, -1, -1) == fs.separator() then
+    current = string.sub(current, 1, #current - 1)
+  end
+
+  repeat
+    local _files = {}
+    local _dirs = {}
+
+    if #dirs > 0 then
+      current = table.remove(dirs, 1)
+    end
+
+    lookup[current] = {}
+
+    local items = fs.files(current, fullpath)
+    for item in items do
+      if fs.type(item) == 'file' then
+        if string.sub(item, -1, -1) == fs.separator() then
+          item = string.sub(item, 1, #item - 1)
+        end
+        table.insert(_files, item)
+      else
+        table.insert(_dirs, item)
+      end
+    end
+
+    table.sort(_files)
+    table.sort(_dirs)
+
+    for _, v in pairs(_files) do
+      table.insert(lookup[current], v)
+    end
+
+    for _, v in pairs(_dirs) do
+      table.insert(dirs, v)
+    end
+  until #dirs == 0
+
+  local sorted_dirs = {}
+  for item, _ in pairs(lookup) do
+    table.insert(sorted_dirs, item)
+  end
+
+  table.sort(sorted_dirs)
+
+  for _, item in pairs(sorted_dirs) do
+    for _, file in pairs(lookup[item]) do
+      table.insert(files, file)
+    end
+  end
+
+  return files
 end
 fs.link = function(file, link)
   return lfs.link(file, link)

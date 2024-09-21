@@ -1,42 +1,57 @@
 # Sepi's Quake Tools (SQT)
 
-TODO: add some introduction
-TODO: mention the 3rd party codes and licenses and links
-TODO: consider using this: https://github.com/KaisenAmin/c_std
+SQT is a set of commands to work with quake 1 files
+The code is licensed under GNU general public license version 3 (GPLv3)
 
-# TODOs
+# How to build
+todo
 
-- learn about these formats:
-  - [x] PAK
-  - [x] LMP
-  - [x] WAD (TEXTURES)
-  - [ ] NAV
-  - [ ] BSP
-  - [ ] LIT
-  - [ ] MDL
-  - [-] MD5ANIM <TEXT>
-  - [-] MD5MESH <TEXT>
-  - [ ] BNVIB
-  - [?] DEM
-  - [ ] BIN
-  - [ ] DAT
+# How to use
 
-- commands:
-  - [x] unpak
-  - [ ] pak
-  - [x] unlmp
-  - [ ] lmp
-  - [x] unwad
-  - [ ] wad
-  - [ ] unmdl (to json or obj)
-  - [ ] mdl (from obj or json)
-  - [ ] unmda <md5anim> (to json or something)
-  - [ ] mda <md5anim> (from json or something)
-  - [ ] unmdm <md5mesh> (to json or something)
-  - [ ] mdm <md5mesh> (from json or something)
-- do i need these (i have no ideas)
-  - [ ] unbsp
-  - [ ] bsp
-  - [ ] unlit
-  - [ ] lit
-  - [ ]
+SQT comes with a lot of sub commands to work with various quake files
+items marked as '✅' are already implemented
+items marked as '❌' are NOT implemented YET
+
+## to level commands
+- pak: this command deals with the .PAK files
+- lmp: this command deals with the .LMP files
+- wad: this command deals with the .WAD files
+
+## pak command
+- ✅ info: this command deals with the .PAK files
+- ✅ list: use this to list items in a .PAK file
+- ✅ extract: use this to extract items in a .PAK file
+- ✅ create: use this to create a .PAK file
+
+## lmp command
+- ❌ info: use this to get some details about a .LMP file
+- ❌ decode: use this to decode a .LMP file into a .png image
+- ❌ encode: use this to encode a .png image into a .LMP file
+
+## wad command
+- ❌ info: use this to get some details about a .WAD file
+- ❌ list: use this to list items in a .WAD file
+- ❌ extract: use this to extract items in a .WAD file
+- ❌ create: use this to create a .WAD file
+
+
+## other file types to cover soon
+- NAV
+- BSP
+- LIT
+- MDL
+- MD5ANIM
+- MD5MESH
+- BNVIB
+- DEM
+- BIN
+- DAT
+
+# Credtis:
+- [lua](https://www.lua.org/)
+- [lua files ystem](http://lunarmodules.github.io/luafilesystem)
+- [miniz](https://github.com/richgel999/miniz)
+- [spng](https://github.com/randy408/libspng/tree/master/spng)
+
+# Notes:
+- [ ] consider using this: https://github.com/KaisenAmin/c_std
