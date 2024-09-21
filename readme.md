@@ -17,26 +17,26 @@ items marked as ❌ are NOT implemented YET.
 
 
 ## to level commands
-- pak: this command deals with the .PAK files
-- lmp: this command deals with the .LMP files
-- wad: this command deals with the .WAD files
+- `pak`: this command deals with the .PAK files
+- `lmp`: this command deals with the .LMP files
+- `wad`: this command deals with the .WAD files
 
 ## pak command
-- ✅ info: this command deals with the .PAK files
-- ✅ list: use this to list items in a .PAK file
-- ✅ extract: use this to extract items in a .PAK file
-- ✅ create: use this to create a .PAK file
+- ✅ `info`: this command deals with the .PAK files
+- ✅ `list`: use this to list items in a .PAK file
+- ✅ `extract`: use this to extract items in a .PAK file
+- ✅ `create`: use this to create a .PAK file
 
 ## lmp command
-- ❌ info: use this to get some details about a .LMP file
-- ❌ decode: use this to decode a .LMP file into a .png image
-- ❌ encode: use this to encode a .png image into a .LMP file
+- ❌ `info`: use this to get some details about a .LMP file
+- ❌ `decode`: use this to decode a .LMP file into a .png image
+- ❌ `encode`: use this to encode a .png image into a .LMP file
 
 ## wad command
-- ❌ info: use this to get some details about a .WAD file
-- ❌ list: use this to list items in a .WAD file
-- ❌ extract: use this to extract items in a .WAD file
-- ❌ create: use this to create a .WAD file
+- ❌ `info`: use this to get some details about a .WAD file
+- ❌ `list`: use this to list items in a .WAD file
+- ❌ `extract`: use this to extract items in a .WAD file
+- ❌ `create`: use this to create a .WAD file
 
 
 ## other file types to cover soon
