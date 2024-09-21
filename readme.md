@@ -52,10 +52,13 @@ items marked as ❌ are NOT implemented YET.
 - DAT
 
 # Credtis:
-- [lua](https://www.lua.org/)
-- [lua files ystem](http://lunarmodules.github.io/luafilesystem)
 - [miniz](https://github.com/richgel999/miniz)
 - [spng](https://github.com/randy408/libspng/tree/master/spng)
+- [lua](https://www.lua.org/)
+- [lua files ystem](http://lunarmodules.github.io/luafilesystem)
+- [lua argparse](https://github.com/mpeterv/argparse)
+- [lua minifs](https://github.com/tst2005/lua-minifs/)
+- [lua pretty print](https://github.com/jagt/pprint.lua)
 
 # Notes:
 - [ ] consider using this: https://github.com/KaisenAmin/c_std
