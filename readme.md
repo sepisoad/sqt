@@ -52,6 +52,8 @@ items marked as ❌ are NOT implemented YET.
 - DAT
 
 # Credtis:
+SQT relies on the following tools and open-source projects.
+
 - [miniz](https://github.com/richgel999/miniz)
 - [spng](https://github.com/randy408/libspng/tree/master/spng)
 - [lua](https://www.lua.org/)
