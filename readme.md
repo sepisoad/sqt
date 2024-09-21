@@ -1,16 +1,20 @@
 # Sepi's Quake Tools (SQT)
 
-SQT is a set of commands to work with quake 1 files
+SQT is a set of commands to work with quake 1 files.
+
 The code is licensed under GNU general public license version 3 (GPLv3)
 
 # How to build
-todo
+The build commands need some refinement, but the code itself is easy to compile and fully portable. My priority is to get the code into the desired state first, after which I’ll update the Makefile to streamline the build process.
 
 # How to use
 
-SQT comes with a lot of sub commands to work with various quake files
-items marked as '✅' are already implemented
-items marked as '❌' are NOT implemented YET
+SQT comes with a lot of sub commands to work with various quake files.
+
+items marked as ✅ are already implemented.
+
+items marked as ❌ are NOT implemented YET.
+
 
 ## to level commands
 - pak: this command deals with the .PAK files
