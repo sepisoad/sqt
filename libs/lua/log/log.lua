@@ -13,7 +13,7 @@ local print_log = function(msg, ext, lvl)
 
   msg = string.format("[%s]: %s", lvl, msg)
   if ext ~= nil and ext ~= "" then
-    msg = string.format("%s\n details: %s", ext)
+    msg = string.format("%s\n details: %s", msg, ext)
   end
   print(msg)
 end

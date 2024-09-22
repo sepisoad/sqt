@@ -8,7 +8,7 @@
             "name": "dgb",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/qtools",
+            "program": "${workspaceFolder}/sqt",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

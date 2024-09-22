@@ -59,5 +59,44 @@ lmp_info:
 		info \
 		-i ignore/quake/PAK/gfx/bigbox.lmp
 
+lmp_decode:
+	@./$(BIN) \
+		lmp \
+		decode \
+		-i ignore/quake/PAK/gfx/bigbox.lmp \
+		-p ignore/quake/PAK/gfx/palette.lmp \
+		-o ignore/LMP/X/Y/Z/gfx/bigbox.png
+
+lmp_encode:
+	@./$(BIN) \
+		lmp \
+		encode \
+		-i ignore/LMP/X/Y/Z/gfx/bigbox.png \
+		-p ignore/quake/PAK/gfx/palette.lmp \
+		-o ignore/LMP/X/Y/Z/gfx/bigbox.lmp
+
+lmp_decode_me:
+	@./$(BIN) \
+		lmp \
+		decode \
+		-i ignore/LMP/X/Y/Z/gfx/bigbox.lmp \
+		-p ignore/quake/PAK/gfx/palette.lmp \
+		-o ignore/LMP/X/Y/Z/gfx/bigbox_me.png
+
+lmp_encode_non:
+	@./$(BIN) \
+		lmp \
+		encode \
+		-i ignore/LMP/X/Y/Z/gfx/sqt.png \
+		-p ignore/quake/PAK/gfx/palette.lmp \
+		-o ignore/LMP/X/Y/Z/gfx/sqt.lmp
+
+lmp_decode_non:
+	@./$(BIN) \
+		lmp \
+		decode \
+		-i ignore/LMP/X/Y/Z/gfx/sqt.lmp \
+		-p ignore/quake/PAK/gfx/palette.lmp \
+		-o ignore/LMP/X/Y/Z/gfx/sqt_non.png
 
 ### ===============================================

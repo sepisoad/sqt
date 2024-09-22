@@ -389,7 +389,7 @@ local cmd_extract = function(pak_file_path, out_dir_path)
 end
 
 --- ===============================================
---- TODO
+--- create command
 --- ===============================================
 ---@param input_dir_path string
 ---@param output_pak_path string

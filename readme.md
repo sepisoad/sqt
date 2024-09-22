@@ -1,6 +1,6 @@
 # SEPI'D QUAKE TOOLS (SQT)
 
-![logo](res/sqt.png)
+![logo](docs/sqt.png)
 
 SQT is a set of commands to work with quake 1 files.
 
@@ -30,9 +30,11 @@ items marked as ❌ are NOT implemented YET.
 - ✅ `create`: use this to create a .PAK file
 
 ## lmp command
-- ❌ `info`: use this to get some details about a .LMP file
-- ❌ `decode`: use this to decode a .LMP file into a .png image
-- ❌ `encode`: use this to encode a .png image into a .LMP file
+- ✅ `info`: use this to get some details about a .LMP file
+- ✅ `decode`: use this to decode a .LMP file into a .png image
+- ✅ `encode`: use this to encode a .png image into a .LMP file
+
+* this command automatically encodes a non-indexed PNG file into a lump file, converting its colors to the standard Quake palette using an approximation technique. No additional steps are required from the user
 
 ## wad command
 - ❌ `info`: use this to get some details about a .WAD file

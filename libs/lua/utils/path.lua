@@ -12,6 +12,14 @@ local create_dir_if_doesnt_exist = function(p)
   end
 end
 
+local create_dir_for_file_path = function(p)
+  local sep = mfs.separator()
+  local p2 = p:match(".*[" .. sep .. "]")
+  if not mfs.exists(p2) then
+    return mfs.mkrdir(p2)
+  end
+end
+
 local join_item_path = function(dir, item)
   local full = mfs.join(dir, item)
   local base = mfs.dirname(full)
@@ -51,6 +59,7 @@ end
 
 return {
   create_dir_if_doesnt_exist = create_dir_if_doesnt_exist,
+  create_dir_for_file_path = create_dir_for_file_path,
   join_item_path = join_item_path,
   get_file_disk_size = get_file_disk_size,
   list_files_in_dir = list_files_in_dir,

@@ -107,14 +107,14 @@ end)
 -- lmp -> encode sub command
 local lmp_encode = lmp:command("encode", "use this to encode a .png image into a .LMP file")
 lmp_encode:option("-i --input", "set the input .png file path"):target("input"):args(1)
-lmp_decode:option("-p --palette", "set the input palette file path"):target("palette"):args(1)
+lmp_encode:option("-p --palette", "set the input palette file path"):target("palette"):args(1)
 lmp_encode:option("-o --output", "set the output .LMP file path"):target("output"):args(1)
 lmp_encode:action(function (args)
   if not args.input or not args.palette or not args.output then
     print(lmp_encode:get_help())
     os.exit(1)
   end
-  _lmp.encode(args.input, args.palette, args.output)
+  _lmp.encode(args.input, args.output, args.palette)
 end)
 
 -- ==================================================================

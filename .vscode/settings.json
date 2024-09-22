@@ -30,7 +30,9 @@
         "__split_buffer": "c",
         "deque": "c",
         "unordered_map": "c",
-        "module.h": "c"
+        "module.h": "c",
+        "spng.h": "c",
+        "random": "c"
     },
     "C_Cpp.default.compilerPath": "/usr/bin/clang-14"
 }
