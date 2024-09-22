@@ -34,7 +34,8 @@ items marked as ❌ are NOT implemented YET.
 - ✅ `decode`: use this to decode a .LMP file into a .png image
 - ✅ `encode`: use this to encode a .png image into a .LMP file
 
-* this command automatically encodes a non-indexed PNG file into a lump file, converting its colors to the standard Quake palette using an approximation technique. No additional steps are required from the user
+* this command automatically encodes a non-indexed PNG file into a lump file, converting its colors to the standard Quake palette using an approximation technique. No additional steps are required from the user, bellow is an example of the indexd version of the SQT png logo:
+![logo](docs/sqt_idx.png)
 
 ## wad command
 - ❌ `info`: use this to get some details about a .WAD file
