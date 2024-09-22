@@ -68,4 +68,5 @@ SQT relies on the following tools and open-source projects.
 - [lua pretty print](https://github.com/jagt/pprint.lua)
 
 # Notes:
+- [ ] maybe replace png with qoi: https://github.com/phoboslab/qoi
 - [ ] consider using this: https://github.com/KaisenAmin/c_std
