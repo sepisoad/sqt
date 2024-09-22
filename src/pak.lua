@@ -7,6 +7,7 @@ local container = require('libs.lua.utils.container')
 --- ===============================================
 
 local HEADER_ITEM_SIZE = 56 + 4 + 4 -- name + pos + len
+local PAK_HEADER_CODE_VALUE = "PACK"
 local PAK_HEADER_SIZE = 12
 local PAK_HEADER_CODE_SIZE = 4
 local PAK_HEADER_OFFSET_SIZE = 4
@@ -73,12 +74,11 @@ local load_pak_file_header = function(file)
   log.dbg("loading .PAK file header")
 
   ---@type PakHeader
-  ---@diagnostic disable-next-line: missing-fields
-  local header = {}
-
-  header.Code = file:read(PAK_HEADER_CODE_SIZE)
-  header.Offset = string.unpack("=i", file:read(PAK_HEADER_OFFSET_SIZE))
-  header.Length = string.unpack("=i", file:read(PAK_HEADER_LENGTH_SIZE))
+  local header = {
+    Code = file:read(PAK_HEADER_CODE_SIZE),
+    Offset = string.unpack("=i", file:read(PAK_HEADER_OFFSET_SIZE)),
+    Length = string.unpack("=i", file:read(PAK_HEADER_LENGTH_SIZE)),
+  }
 
   return header
 end
@@ -88,8 +88,8 @@ end
 local verify_pak_header = function(header)
   log.dbg("verifying .PAK file header")
 
-  if header.Code ~= "PACK" or header.Length <= 0 or header.Offset <= 0 then
-    log.err(string.format("pak file heaeder is not valid"))
+  if header.Code ~= PAK_HEADER_CODE_VALUE or header.Length <= 0 or header.Offset <= 0 then
+    log.err(string.format(".PAK file header is not valid"))
     os.exit(1)
   end
 end
@@ -164,7 +164,7 @@ end
 --- -----------------------------------------------
 ---@param p string
 local create_extraction_item_dir = function(p)
-  log.dbg("creating pak item extraction directory")
+  log.dbg("creating .PAK item extraction directory")
 
   return utils.create_dir_if_doesnt_exist(p)
 end
@@ -174,7 +174,7 @@ end
 ---@param item_name string
 ---@return string, string
 local get_extraction_file_path = function(dir_name, item_name)
-  log.dbg("constracting pak item extraction file path")
+  log.dbg("constracting .PAK item extraction file path")
 
 
   return utils.join_item_path(dir_name, item_name)
@@ -202,7 +202,7 @@ local extract_items = function(pak_file, headers, out_dir_path)
 
   local count = #headers
   for progress, header in pairs(headers) do
-    log.info(string.format("%d/%d extracting '%s", progress, count, header.Name))
+    print(string.format("%d/%d extracting '%s", progress, count, header.Name))
 
     local item_path, item_dir = get_extraction_file_path(out_dir_path, header.Name)
     create_extraction_item_dir(item_dir)

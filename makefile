@@ -100,3 +100,28 @@ lmp_decode_non:
 		-o ignore/LMP/X/Y/Z/gfx/sqt_non.png
 
 ### ===============================================
+wad_info:
+	@./$(BIN) \
+		wad \
+		info \
+		-i ignore/quake/PAK/gfx/all.wad
+
+wad_list:
+	@./$(BIN) \
+		wad \
+		list \
+		-i ignore/quake/PAK/gfx/all.wad
+
+wad_extract:
+	@./$(BIN) \
+		wad \
+		extract \
+		-i ignore/quake/PAK/gfx/all.wad \
+		-o ignore/WAD/gfx
+
+wad_create:
+	@./$(BIN) \
+		wad \
+		create \
+		-i ignore/WAD/gfx \
+		-o ignore/WAD/gfx.wad

@@ -38,13 +38,19 @@ items marked as ❌ are NOT implemented YET.
 ![logo](docs/sqt_idx.png)
 
 ## wad command
-- ❌ `info`: use this to get some details about a .WAD file
-- ❌ `list`: use this to list items in a .WAD file
-- ❌ `extract`: use this to extract items in a .WAD file
+- ✅ `info`: use this to get some details about a .WAD file
+- ✅ `list`: use this to list items in a .WAD file
+- ✅ `extract`: use this to extract items in a .WAD file
 - ❌ `create`: use this to create a .WAD file
+
+## tex command
+- ❌ `info`: use this to get some details about a .TEX file
+- ❌ `decode`: use this to decode a .TEX file into a .png image
+- ❌ `encode`: use this to encode a .png image into a .TEX file
 
 
 ## other file types to cover soon
+- TEX
 - NAV
 - BSP
 - LIT

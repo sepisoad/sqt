@@ -1,6 +1,7 @@
 local _pak = require('src.pak')
 local _lmp = require('src.lmp')
 local _wad = require('src.wad')
+-- local _tex = require('src.tex') or {}
 local argparse = require("libs.lua.argparse.argparse")
 
 local parser = argparse()
@@ -134,8 +135,7 @@ wad_info:action(function (args)
     print(wad_info:get_help())
     os.exit(1)
   end
-  -- TODO: implement this
-  print("NOT IMPLEMENTED YET!")
+  _wad.info(args.input)
 end)
 
 -- ---------------------------------
@@ -147,8 +147,7 @@ wad_list:action(function (args)
     print(wad_list:get_help())
     os.exit(1)
   end
-  -- TODO: implement this
-  print("NOT IMPLEMENTED YET!")
+  _wad.list(args.input)
 end)
 
 -- ---------------------------------
@@ -161,7 +160,7 @@ wad_extract:action(function (args)
     print(wad_extract:get_help())
     os.exit(1)
   end
-  pak.cmd(args.input, args.output)
+  _wad.extract(args.input, args.output)
 end)
 
 -- ---------------------------------
@@ -174,8 +173,55 @@ wad_create:action(function (args)
     print(wad_create:get_help())
     os.exit(1)
   end
-  print("NOT IMPLEMENTED YET!")
+  _wad.create(args.input, args.output)
 end)
 
+-- ==================================================================
+--  tex top command
+-- ==================================================================
+local tex = parser:command(
+  "tex",
+  "this command deals with the .TEX files"
+)
+
+-- ---------------------------------
+-- tex -> info sub command
+local tex_info = tex:command("info", "use this to get some details about a .TEX file")
+tex_info:option("-i --input", "set the .TEX file input path"):target("input"):args(1)
+tex_info:action(function (args)
+  if not args.input then
+    print(tex_info:get_help())
+    os.exit(1)
+  end
+  _tex.info(args.input)
+end)
+
+-- ---------------------------------
+-- tex -> decode sub command
+local tex_decode = tex:command("decode", "use this to decode a .TEX file into a .png image")
+tex_decode:option("-i --input", "set the .TEX file input path"):target("input"):args(1)
+tex_decode:option("-p --palette", "set the input palette file path"):target("palette"):args(1)
+tex_decode:option("-o --output", "set the output .png file path"):target("output"):args(1)
+tex_decode:action(function (args)
+  if not args.input or not args.palette or not args.output then
+    print(tex_decode:get_help())
+    os.exit(1)
+  end
+  _tex.decode(args.input, args.palette, args.output)
+end)
+
+-- ---------------------------------
+-- tex -> encode sub command
+local tex_encode = tex:command("encode", "use this to encode a .png image into a .TEX file")
+tex_encode:option("-i --input", "set the input .png file path"):target("input"):args(1)
+tex_encode:option("-p --palette", "set the input palette file path"):target("palette"):args(1)
+tex_encode:option("-o --output", "set the output .TEX file path"):target("output"):args(1)
+tex_encode:action(function (args)
+  if not args.input or not args.palette or not args.output then
+    print(tex_encode:get_help())
+    os.exit(1)
+  end
+  _tex.encode(args.input, args.output, args.palette)
+end)
 
 parser:parse()
