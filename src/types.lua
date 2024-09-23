@@ -18,7 +18,6 @@ WadItemType = {
 --- WadHeader
 --- ===============================================
 
---- WadHeader
 ---@class WadHeader
 ---@field Code string        (4 bytes)
 ---@field ItemsCount integer (4 bytes)
@@ -37,7 +36,6 @@ WadHeader_ = {
 --- WadItem(s)Header
 --- ===============================================
 
---- WadItemHeader
 ---@class WadItemHeader
 ---@field Position integer
 ---@field Size integer
@@ -65,7 +63,6 @@ WadItemHeader_ = {
 --- TexHeader
 --- ===============================================
 
---- TexHeader
 ---@class TexHeader
 ---@field Name string
 ---@field Width integer
@@ -85,7 +82,6 @@ TexHeader_ = {
 --- TexHeader
 --- ===============================================
 
---- PakHeader
 ---@class PakHeader
 ---@field Code string (4 bytes)
 ---@field Offset integer (4 bytes)
@@ -104,7 +100,6 @@ PakHeader_ = {
 --- PakItemHeader
 --- ===============================================
 
---- PakItemHeader
 ---@class PakItemHeader
 ---@field Name string
 ---@field Position integer
@@ -125,21 +120,42 @@ PakItemHeader_ = {
 --- PakItemHeader
 --- ===============================================
 
---- LumpHeader
 ---@class LumpHeader
 ---@field Width integer (4 bytes )
 ---@field Height integer (4 bytes )
 ---@field Data any (buffer)
-local LumpHeader = {}
+LumpHeader = {}
 
+---@enum LumpHeader_
+LumpHeader_ = {
+  Width = 4,
+  Height = 4,
+  Data = "*",
+}
+
+--- ===============================================
 --- RGBColor
+--- ===============================================
+
 ---@class RGBColor
 ---@field Red integer (1 byte unsigned, 0-255)
 ---@field Green integer (1 byte unsigned, 0-255)
 ---@field Blue integer (1 byte unsigned, 0-255)
-local RGBColor = {}
+RGBColor = {}
 
+---@alias Colors RGBColor[]
+
+---@enum RGBColor_
+RGBColor_ = {
+  Red = 1,
+  Green = 1,
+  Blue = 1,
+}
+
+--- ===============================================
 --- PaletteData
+--- ===============================================
+
 ---@class PaletteData
----@field Colors RGBColor[]
-local PaletteData = {}
+---@field Colors Colors
+PaletteData = {}

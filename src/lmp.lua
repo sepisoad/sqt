@@ -1,44 +1,8 @@
+require('src.types')
+
 local png = require('spng')
 local log = require('libs.lua.log.log')
 local utils = require('libs.lua.utils.path')
-
---- ===============================================
---- constants
---- ===============================================
-
-local RBG_COLOR_SIZE = 3
-local LUMP_HEADER_WIDTH_SIZE = 4
-local LUMP_HEADER_HEIGHT_SIZE = 4
-local LUMP_PALETTE_COLOR_RED_SIZE = 1
-local LUMP_PALETTE_COLOR_GREEN_SIZE = 1
-local LUMP_PALETTE_COLOR_BLUE_SIZE = 1
-
---- ===============================================
---- types
---- ===============================================
-
---- LumpHeader
----@class LumpHeader
----@field Width integer (4 bytes )
----@field Height integer (4 bytes )
----@field Data any (buffer)
-local LumpHeader = {}
-
---- RGBColor
----@class RGBColor
----@field Red integer (1 byte unsigned, 0-255)
----@field Green integer (1 byte unsigned, 0-255)
----@field Blue integer (1 byte unsigned, 0-255)
-local RGBColor = {}
-
---- PaletteData
----@class PaletteData
----@field Colors RGBColor[]
-local PaletteData = {}
-
---- ===============================================
---- helper functions
---- ===============================================
 
 --- -----------------------------------------------
 ---@param p string
@@ -123,16 +87,16 @@ local load_palette_data = function(palette_f, palette_size)
   log.dbg("loading palette color data")
 
   ---@type PaletteData
-  ---@diagnostic disable-next-line: missing-fields
-  local colors = {}
-  local num_of_colors = palette_size // RBG_COLOR_SIZE -- (rgb = 3 * 8 => 24 bits)
+  local colors = { Colors = {} }
+  local rgb_size = RGBColor_.Red + RGBColor_.Green + RGBColor_.Blue
+  local num_of_colors = palette_size // rgb_size
 
   for _ = 1, num_of_colors do
     ---@type RGBColor
     local RGB = {
-      Red = string.unpack("=B", palette_f:read(LUMP_PALETTE_COLOR_RED_SIZE)),
-      Green = string.unpack("=B", palette_f:read(LUMP_PALETTE_COLOR_GREEN_SIZE)),
-      Blue = string.unpack("=B", palette_f:read(LUMP_PALETTE_COLOR_BLUE_SIZE))
+      Red = string.unpack("=B", palette_f:read(RGBColor_.Red)),
+      Green = string.unpack("=B", palette_f:read(RGBColor_.Green)),
+      Blue = string.unpack("=B", palette_f:read(RGBColor_.Blue))
     }
     table.insert(colors, RGB)
   end
@@ -241,8 +205,8 @@ local load_lump_file_header = function(lump_f)
 
   ---@type LumpHeader
   local header = {
-    Width = string.unpack("=i", lump_f:read(LUMP_HEADER_WIDTH_SIZE)),
-    Height = string.unpack("=i", lump_f:read(LUMP_HEADER_HEIGHT_SIZE)),
+    Width = string.unpack("=i", lump_f:read(LumpHeader_.Width)),
+    Height = string.unpack("=i", lump_f:read(LumpHeader_.Height)),
     Data = lump_f:read("a")
   }
   return header
