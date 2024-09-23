@@ -81,3 +81,39 @@ TexHeader_ = {
   Data = "*"
 }
 
+--- ===============================================
+--- TexHeader
+--- ===============================================
+
+--- PakHeader
+---@class PakHeader
+---@field Code string (4 bytes)
+---@field Offset integer (4 bytes)
+---@field Length integer (4 bytes)
+PakHeader = {}
+
+---@enum PakHeader_
+PakHeader_ = {
+  CODE = "PACK",
+  Code = 4,
+  Offset = 4,
+  Length = 4,
+}
+
+--- ===============================================
+--- PakItemHeader
+--- ===============================================
+
+--- PakItemHeader
+---@class PakItemHeader
+---@field Name string
+---@field Position integer
+---@field Length integer
+PakItemHeader = {}
+
+---@enum PakItemHeader_
+PakItemHeader_ = {
+  Name = 56,
+  Position = 4,
+  Length = 4,
+}

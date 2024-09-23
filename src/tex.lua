@@ -2,32 +2,6 @@ local png = require('spng')
 local log = require('libs.lua.log.log')
 local utils = require('libs.lua.utils.path')
 
---- ===============================================
---- constants
---- ===============================================
-
-local RBG_COLOR_SIZE = 3
-local TEX_HEADER_NAME_SIZE = 16
-local TEX_HEADER_WIDTH_SIZE = 4
-local TEX_HEADER_HEIGHT_SIZE = 4
-local TEX_PALETTE_COLOR_RED_SIZE = 1
-local TEX_PALETTE_COLOR_GREEN_SIZE = 1
-local TEX_PALETTE_COLOR_BLUE_SIZE = 1
-
---- ===============================================
---- types
---- ===============================================
-
---- TexHeader
----@class TexHeader
----@field Name string (16 bytes )
----@field Width integer (4 bytes )
----@field Height integer (4 bytes )
----@field Data any (buffer)
-
---- ===============================================
---- helper functions
---- ===============================================
 
 --- -----------------------------------------------
 ---@param p string

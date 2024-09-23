@@ -1,42 +1,8 @@
+require('src.types')
+
 local log = require('libs.lua.log.log')
 local utils = require('libs.lua.utils.path')
 local container = require('libs.lua.utils.container')
-
---- ===============================================
---- constants
---- ===============================================
-
-local HEADER_ITEM_SIZE = 56 + 4 + 4 -- name + pos + len
-local PAK_HEADER_CODE_VALUE = "PACK"
-local PAK_HEADER_SIZE = 12
-local PAK_HEADER_CODE_SIZE = 4
-local PAK_HEADER_OFFSET_SIZE = 4
-local PAK_HEADER_LENGTH_SIZE = 4
-local PAK_ITEM_HEADER_NAME_SIZE = 56
-local PAK_ITEM_HEADER_POSITION_SIZE = 4
-local PAK_ITEM_HEADER_LENGTH_SIZE = 4
-
---- ===============================================
---- types
---- ===============================================
-
---- PakHeader struct
----@class PakHeader
----@field Code string (4 bytes)
----@field Offset integer (4 bytes)
----@field Length integer (4 bytes)
-local PakHeader = {}
-
---- PakItemHeader struct
----@class PakItemHeader
----@field Name string (56 bytes)
----@field Position integer (4 bytes)
----@field Length integer (4 bytes)
-local PakItemHeader = {}
-
---- ===============================================
---- helper functions
---- ===============================================
 
 --- -----------------------------------------------
 ---@param p string
@@ -75,9 +41,9 @@ local load_pak_file_header = function(file)
 
   ---@type PakHeader
   local header = {
-    Code = file:read(PAK_HEADER_CODE_SIZE),
-    Offset = string.unpack("=i", file:read(PAK_HEADER_OFFSET_SIZE)),
-    Length = string.unpack("=i", file:read(PAK_HEADER_LENGTH_SIZE)),
+    Code = file:read(PakHeader_.Code),
+    Offset = string.unpack("=i", file:read(PakHeader_.Offset)),
+    Length = string.unpack("=i", file:read(PakHeader_.Length)),
   }
 
   return header
@@ -88,7 +54,9 @@ end
 local verify_pak_header = function(header)
   log.dbg("verifying .PAK file header")
 
-  if header.Code ~= PAK_HEADER_CODE_VALUE or header.Length <= 0 or header.Offset <= 0 then
+  if header.Code ~= PakHeader_.CODE or
+      header.Length <= 0 or
+      header.Offset <= 0 then
     log.err(string.format(".PAK file header is not valid"))
     os.exit(1)
   end
@@ -99,7 +67,8 @@ end
 local calculate_pak_items_count = function(header)
   log.dbg("calculating the number of items in the .PAK")
 
-  return header.Length / HEADER_ITEM_SIZE
+  local header_size = PakItemHeader_.Name + PakItemHeader_.Position + PakItemHeader_.Length
+  return header.Length / header_size
 end
 
 --- -----------------------------------------------
@@ -143,9 +112,9 @@ local load_pak_items_header = function(file, items_count)
     ---@diagnostic disable-next-line: missing-fields
     local item = {}
 
-    item.Name = string.unpack("z", file:read(PAK_ITEM_HEADER_NAME_SIZE))
-    item.Position = string.unpack("=i", file:read(PAK_ITEM_HEADER_POSITION_SIZE))
-    item.Length = string.unpack("=i", file:read(PAK_ITEM_HEADER_LENGTH_SIZE))
+    item.Name = string.unpack("z", file:read(PakItemHeader_.Name))
+    item.Position = string.unpack("=i", file:read(PakItemHeader_.Position))
+    item.Length = string.unpack("=i", file:read(PakItemHeader_.Length))
 
     items[index] = item
   end
@@ -270,8 +239,8 @@ local create_pak_items_header_from_files = function(files)
 
   ---@type PakItemHeader[]
   local pak_items_header = {}
-
-  local current_position = PAK_HEADER_SIZE
+  local header_size = PakHeader_.Code + PakHeader_.Offset + PakHeader_.Length
+  local current_position = header_size
 
   for _, file in ipairs(files) do
     ---@type PakItemHeader
@@ -294,11 +263,13 @@ end
 local create_pak_header_from_pak_items_header = function(items_header)
   log.dbg(string.format("creating .PAK header info from its items header info"))
 
+  local header_size = PakHeader_.Code + PakHeader_.Offset + PakHeader_.Length
+  local item_header_size = PakItemHeader_.Name + PakItemHeader_.Position + PakItemHeader_.Length
   ---@type PakHeader
   local pak_header = {
     Code = "PACK",
-    Offset = PAK_HEADER_SIZE,
-    Length = #items_header * HEADER_ITEM_SIZE
+    Offset = header_size,
+    Length = #items_header * item_header_size
   }
 
   for _, item in ipairs(items_header) do
