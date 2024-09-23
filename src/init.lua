@@ -12,6 +12,7 @@ local parser = argparse()
 parser:flag("-v --verbose", "show debug logs"):action(function ()
   _G.VERBOSE = true
 end)
+
 -- ==================================================================
 --  pak top command
 -- ==================================================================
@@ -115,7 +116,7 @@ lmp_encode:action(function (args)
     print(lmp_encode:get_help())
     os.exit(1)
   end
-  _lmp.encode(args.input, args.output, args.palette)
+  _lmp.encode(args.input, args.palette, args.output)
 end)
 
 -- ==================================================================

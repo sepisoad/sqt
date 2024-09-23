@@ -1,4 +1,5 @@
 require('src.types')
+require('src.bits')
 
 local log = require('libs.lua.log.log')
 local utils = require('libs.lua.utils.path')
@@ -27,9 +28,9 @@ local load_wad_file_header = function(file)
 
   ---@type WadHeader
   local header = {
-    Code = file:read(WadHeader_.Code),
-    ItemsCount = string.unpack("=i", file:read(WadHeader_.ItemsCount)),
-    Offset = string.unpack("=i", file:read(WadHeader_.Offset)),
+    Code = ReadBuf(file, WadHeader_.Code),
+    ItemsCount = ReadI32(file, WadHeader_.ItemsCount),
+    Offset = ReadI32(file, WadHeader_.Offset),
   }
 
   return header
@@ -70,13 +71,15 @@ local load_wad_items_header = function(file, wad_header)
   for index = 1, wad_header.ItemsCount do
     ---@type WadItemHeader
     local item = {
-      Position = string.unpack("=i", file:read(WadItemHeader_.Position)),
-      Size = string.unpack("=i", file:read(WadItemHeader_.Size)),
-      CompressedSize = string.unpack("=i", file:read(WadItemHeader_.CompressedSize)),
-      Type = string.unpack("=c1", file:read(WadItemHeader_.Type)),
-      CompressionType = string.unpack("=B", file:read(WadItemHeader_.CompressionType)),
-      Paddings = file:read(WadItemHeader_.Paddings),
-      Name = string.unpack("z", file:read(WadItemHeader_.Name)),
+      Position = ReadI32(file, WadItemHeader_.Position),
+      Size = ReadI32(file, WadItemHeader_.Size),
+      CompressedSize = ReadI32(file, WadItemHeader_.CompressedSize),
+      ---@diagnostic disable-next-line: assign-type-mismatch
+      Type = ReadChars(file, WadItemHeader_.Type),
+      ---@diagnostic disable-next-line: assign-type-mismatch
+      CompressionType = ReadU8(file, WadItemHeader_.CompressionType),
+      Paddings = ReadBuf(file, WadItemHeader_.Paddings),
+      Name = ReadCStr(file, WadItemHeader_.Name),
     }
 
     items[index] = item
@@ -205,7 +208,7 @@ local read_wad_item_data = function(file, header)
   log.dbg("reading .WAD item data")
 
   file:seek("set", header.Position)
-  local data = file:read(header.Size)
+  local data = ReadBuf(file, header.Size)
   if not data then
     log.err(string.format("failed to read data from input .WAD item '%s'", header.Name))
     os.exit(1)
@@ -221,7 +224,7 @@ end
 local save_item_data_to_file = function(file, data, path)
   log.dbg("saving .WAD data into file")
 
-  if not file:write(data) then
+  if not WriteAll(file, data) then
     log.err(string.format("failed to write .WAD item data to output file '%s'", path))
     os.exit(1)
   end

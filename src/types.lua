@@ -19,9 +19,9 @@ WadItemType = {
 --- ===============================================
 
 ---@class WadHeader
----@field Code string        (4 bytes)
----@field ItemsCount integer (4 bytes)
----@field Offset integer     (4 bytes)
+---@field Code string
+---@field ItemsCount integer
+---@field Offset integer
 WadHeader = {}
 
 ---@enum WadHeader_
@@ -83,9 +83,9 @@ TexHeader_ = {
 --- ===============================================
 
 ---@class PakHeader
----@field Code string (4 bytes)
----@field Offset integer (4 bytes)
----@field Length integer (4 bytes)
+---@field Code string
+---@field Offset integer
+---@field Length integer
 PakHeader = {}
 
 ---@enum PakHeader_
@@ -121,9 +121,9 @@ PakItemHeader_ = {
 --- ===============================================
 
 ---@class LumpHeader
----@field Width integer (4 bytes )
----@field Height integer (4 bytes )
----@field Data any (buffer)
+---@field Width integer
+---@field Height integer
+---@field Data any
 LumpHeader = {}
 
 ---@enum LumpHeader_
@@ -138,9 +138,9 @@ LumpHeader_ = {
 --- ===============================================
 
 ---@class RGBColor
----@field Red integer (1 byte unsigned, 0-255)
----@field Green integer (1 byte unsigned, 0-255)
----@field Blue integer (1 byte unsigned, 0-255)
+---@field Red integer
+---@field Green integer
+---@field Blue integer
 RGBColor = {}
 
 ---@alias Colors RGBColor[]

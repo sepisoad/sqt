@@ -1,7 +1,9 @@
+require('src.types')
+require('src.bits')
+
 local png = require('spng')
 local log = require('libs.lua.log.log')
 local utils = require('libs.lua.utils.path')
-
 
 --- -----------------------------------------------
 ---@param p string
@@ -87,15 +89,16 @@ local load_palette_data = function(palette_f, palette_size)
 
   ---@type PaletteData
   ---@diagnostic disable-next-line: missing-fields
-  local colors = {}
-  local num_of_colors = palette_size // RBG_COLOR_SIZE -- (rgb = 3 * 8 => 24 bits)
+  local colors = { Colors = {} }
+  local rgb_size = RGBColor_.Red + RGBColor_.Green + RGBColor_.Blue
+  local num_of_colors = palette_size // rgb_size
 
   for _ = 1, num_of_colors do
     ---@type RGBColor
     local RGB = {
-      Red = string.unpack("=B", palette_f:read(TEX_PALETTE_COLOR_RED_SIZE)),
-      Green = string.unpack("=B", palette_f:read(TEX_PALETTE_COLOR_GREEN_SIZE)),
-      Blue = string.unpack("=B", palette_f:read(TEX_PALETTE_COLOR_BLUE_SIZE))
+      Red = ReadU8(palette_f, RGBColor_.Red),
+      Green = ReadU8(palette_f, RGBColor_.Green),
+      Blue = ReadU8(palette_f, RGBColor_.Blue)
     }
     table.insert(colors, RGB)
   end
@@ -157,9 +160,10 @@ local save_tex_file = function(tex_header, tex_file_path)
     os.exit(1)
   end
 
-  tex_f:write(string.pack("=i", tex_header.Width))
-  tex_f:write(string.pack("=i", tex_header.Height))
-  tex_f:write(tex_header.Data)
+  WriteChars(tex_f,tex_header.Name, TexHeader_.Name)
+  WriteI32(tex_f,tex_header.Width)
+  WriteI32(tex_f,tex_header.Height)
+  WriteAll(tex_f,tex_header.Data)
 
   tex_f:close()
 end
@@ -205,10 +209,10 @@ local load_tex_file_header = function(tex_f)
 
   ---@type TexHeader
   local header = {
-    Name = string.unpack("z", tex_f:read(TEX_HEADER_NAME_SIZE)),
-    Width = string.unpack("=i", tex_f:read(TEX_HEADER_WIDTH_SIZE)),
-    Height = string.unpack("=i", tex_f:read(TEX_HEADER_HEIGHT_SIZE)),
-    Data = tex_f:read("a")
+    Name = ReadCStr(tex_f, TexHeader_.Name),
+    Width = ReadI32(tex_f, TexHeader_.Width),
+    Height = ReadI32(tex_f, TexHeader_.Height),
+    Data = ReadAll(tex_f)
   }
   return header
 end
