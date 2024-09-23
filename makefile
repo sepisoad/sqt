@@ -125,3 +125,22 @@ wad_create:
 		create \
 		-i ignore/WAD/gfx \
 		-o ignore/WAD/gfx.wad
+
+### ===============================================
+tex_info:
+	@./$(BIN) \
+		tex \
+		info \
+		-i ignore/quake/PAK/gfx/bigbox.lmp
+
+tex_decode:
+	@./$(BIN) \
+		tex \
+		encode \
+		BRRRRRR
+
+tex_encode:
+	@./$(BIN) \
+		tex \
+		encode \
+		BRRRRRR

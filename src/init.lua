@@ -1,7 +1,7 @@
 local _pak = require('src.pak')
 local _lmp = require('src.lmp')
 local _wad = require('src.wad')
--- local _tex = require('src.tex') or {}
+local _tex = require('src.tex')
 local argparse = require("libs.lua.argparse.argparse")
 
 local parser = argparse()

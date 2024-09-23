@@ -1,64 +1,8 @@
-local png = require('spng')
+require('src.types')
+
 local log = require('libs.lua.log.log')
 local utils = require('libs.lua.utils.path')
-local container = require('libs.lua.utils.container')
 local pprint = require('libs.lua.pprint.pprint')
-
---- ===============================================
---- constants
---- ===============================================
-
-local WAD_HEADER_CODE_VALUE = "WAD2"
-local WAD_HEADER_CODE_SIZE = 4
-local WAD_HEADER_ITEMS_COUNT_SIZE = 4
-local WAD_HEADER_OFFSET_SIZE = 4
-local WAD_ITEM_HEADER_POSITION_SIZE = 4
-local WAD_ITEM_HEADER_SIZE_SIZE = 4
-local WAD_ITEM_HEADER_COMPRESSED_SIZE_SIZE = 4
-local WAD_ITEM_HEADER_TYPE_SIZE = 1
-local WAD_ITEM_HEADER_COMPRESSION_TYPE_SIZE = 1
-local WAD_ITEM_HEADER_PADDINGS_SIZE = 2
-local WAD_ITEM_HEADER_NAME_SIZE = 16
-
---- ===============================================
---- types
---- ===============================================
-
----@enum WadItemType
-local WadItemType = {
-  None    = 0,  -- not used anywher in quake engine!
-  Label   = 1,  -- not used anywher in quake engine!
-  Lumpy   = 64, -- not used anywher in quake engine!
-  Palette = 64, -- not used anywher in quake engine!
-  QTex    = 65, -- not used anywher in quake engine!
-  QPic    = 66,
-  Sound   = 67, -- not used anywher in quake engine!
-  MipTex  = 68, -- not used anywher in quake engine!
-}
-
---- WadHeader
----@class WadHeader
----@field Code string        (4 bytes)
----@field ItemsCount integer (4 bytes)
----@field Offset integer     (4 bytes)
-
---- WadItemHeader
----@class WadItemHeader
----@field Position integer        (4 bytes)
----@field Size integer            (4 bytes)
----@field CompressedSize integer  (4 bytes)
----@field Type WadItemType        (1 byte)
----@field CompressionType string  (1 byte)
----@field Paddings string         (2 bytes)
----@field Name string             (16 bytes)
-
---- WadItemsHeader
----@alias WadItemsHeader WadItemHeader[]
-
-
---- ===============================================
---- helper functions
---- ===============================================
 
 --- -----------------------------------------------
 ---@param p string
@@ -83,9 +27,9 @@ local load_wad_file_header = function(file)
 
   ---@type WadHeader
   local header = {
-    Code = file:read(WAD_HEADER_CODE_SIZE),
-    ItemsCount = string.unpack("=i", file:read(WAD_HEADER_ITEMS_COUNT_SIZE)),
-    Offset = string.unpack("=i", file:read(WAD_HEADER_OFFSET_SIZE)),
+    Code = file:read(WadHeader_.Code),
+    ItemsCount = string.unpack("=i", file:read(WadHeader_.ItemsCount)),
+    Offset = string.unpack("=i", file:read(WadHeader_.Offset)),
   }
 
   return header
@@ -96,7 +40,9 @@ end
 local verify_wad_header = function(header)
   log.dbg("verifying .WAD file header")
 
-  if header.Code ~= WAD_HEADER_CODE_VALUE or header.ItemsCount <= 0 or header.Offset <= 0 then
+  if header.Code ~= WadHeader_.CODE or
+      header.ItemsCount <= 0 or
+      header.Offset <= 0 then
     log.err(string.format(".WAD file header is not valid"))
     os.exit(1)
   end
@@ -124,13 +70,13 @@ local load_wad_items_header = function(file, wad_header)
   for index = 1, wad_header.ItemsCount do
     ---@type WadItemHeader
     local item = {
-      Position = string.unpack("=i", file:read(WAD_ITEM_HEADER_POSITION_SIZE)),
-      Size = string.unpack("=i", file:read(WAD_ITEM_HEADER_SIZE_SIZE)),
-      CompressedSize = string.unpack("=i", file:read(WAD_ITEM_HEADER_COMPRESSED_SIZE_SIZE)),
-      Type = string.unpack("=c1", file:read(WAD_ITEM_HEADER_TYPE_SIZE)),
-      CompressionType = string.unpack("=B", file:read(WAD_ITEM_HEADER_COMPRESSION_TYPE_SIZE)),
-      Paddings = file:read(WAD_ITEM_HEADER_PADDINGS_SIZE),
-      Name = string.unpack("z", file:read(WAD_ITEM_HEADER_NAME_SIZE)),
+      Position = string.unpack("=i", file:read(WadItemHeader_.Position)),
+      Size = string.unpack("=i", file:read(WadItemHeader_.Size)),
+      CompressedSize = string.unpack("=i", file:read(WadItemHeader_.CompressedSize)),
+      Type = string.unpack("=c1", file:read(WadItemHeader_.Type)),
+      CompressionType = string.unpack("=B", file:read(WadItemHeader_.CompressionType)),
+      Paddings = file:read(WadItemHeader_.Paddings),
+      Name = string.unpack("z", file:read(WadItemHeader_.Name)),
     }
 
     items[index] = item
@@ -142,16 +88,25 @@ end
 --- -----------------------------------------------
 ---@param wit WadItemType
 ---@return string
-local wad_item_type_to_string = function (wit)
+local wad_item_type_to_string = function(wit)
   wit = string.byte(wit)
-  if wit == WadItemType.None then return "None"
-  elseif wit == WadItemType.Label then return "Label"
-  elseif wit == WadItemType.Lumpy then return "Lumpy"
-  elseif wit == WadItemType.Palette then return "Palette"
-  elseif wit == WadItemType.QTex then return "QTex"
-  elseif wit == WadItemType.QPic then return "QPic"
-  elseif wit == WadItemType.Sound then return "Sound"
-  elseif wit == WadItemType.MipTex then return "MipTex" end
+  if wit == WadItemType.None then
+    return "None"
+  elseif wit == WadItemType.Label then
+    return "Label"
+  elseif wit == WadItemType.Lumpy then
+    return "Lumpy"
+  elseif wit == WadItemType.Palette then
+    return "Palette"
+  elseif wit == WadItemType.QTex then
+    return "QTex"
+  elseif wit == WadItemType.QPic then
+    return "QPic"
+  elseif wit == WadItemType.Sound then
+    return "Sound"
+  elseif wit == WadItemType.MipTex then
+    return "MipTex"
+  end
   return "Unknown"
 end
 
@@ -348,125 +303,6 @@ local cmd_create = function(input_dir_path, output_wad_path)
   log.err("  i want to learn about all of them and the get back to this command for a better understaning")
   log.err("  sorry for letting you down, but this will be fixed soon!")
   os.exit(1)
-end
-
-local function ____cmd(wad_path, out_dir)
-  local wad_f, err
-
-  repeat
-    -- OPEN THE INPUT WAD FILE
-    wad_f, err = io.open(wad_path, "rb")
-    if not wad_f then
-      print("err: failed to open '" .. wad_path .. "'. reason: " .. err)
-      break
-    end
-
-    -- PREPARE THE WAD HEADER
-    local wad_hdr = {
-      code      = "", -- 1 byte:  wad file identifier code
-      lumps_cnt = 0,  -- 4 bytes: wad file lumps count
-      itbl_ofs  = 0   -- 4 bytes: wad file info table offset
-    }
-
-    wad_hdr.code = wad_f:read(4)
-    wad_hdr.lumps_cnt = string.unpack("=i", wad_f:read(4))
-    wad_hdr.itbl_ofs = string.unpack("=i", wad_f:read(4))
-
-    -- VERIFY THAT WAD FILE IS VALID
-    if wad_hdr.code ~= DEFS.WAD_FILE_ID and
-        wad_hdr.lumps_cnt <= 0 and
-        wad_hdr.itbl_ofs <= 0 then
-      print("err: the '" .. wad_path .. "' file is not valid")
-      break
-    end
-
-    -- MOVE THE FILE POINTER TO THE BEGINNING OF ITEMS INFO
-    wad_f:seek("set", wad_hdr.itbl_ofs)
-
-    -- READ ALL ITEMS INFO (LUMPS) IN THE WAD FILE
-    local lmp_infos = {}
-    for idx = 1, wad_hdr.lumps_cnt, 1 do
-      local lmp_hdr = {
-        pos   = 0,  -- 4  bytes:  lump file position
-        size  = 0,  -- 4  bytes:  lump file size on disk
-        xsize = 0,  -- 4  bytes:  lump file uncompressed size
-        typ   = "", -- 1  byte:   lump file type
-        cmpr  = "", -- 1  byte:   lump file compression type
-        pad1  = "", -- 1  byte:   padding (not to be used)
-        pad2  = "", -- 1  byte:   padding (not to be used)
-        name  = ""  -- 16 bytes:  lump file name
-      }
-
-      lmp_hdr.pos = string.unpack("=i", wad_f:read(4))
-      lmp_hdr.size = string.unpack("=i", wad_f:read(4))
-      lmp_hdr.xsize = string.unpack("=i", wad_f:read(4))
-      lmp_hdr.typ = string.unpack("=c1", wad_f:read(1)) -- cn: a fixed-sized string with n bytes
-      lmp_hdr.cmpr = string.unpack("=B", wad_f:read(1)) -- an unsigned byte
-      lmp_hdr.pad1 = wad_f:read(1)
-      lmp_hdr.pad2 = wad_f:read(1)
-      lmp_hdr.name = string.unpack("z", wad_f:read(16)) -- zero terminated c string
-
-      -- pprint(string.format("%s # %s # %s # (%d , %d) ", lmp_hdr.name, lmp_hdr.typ, lmp_hdr.cmpr, lmp_hdr.size, lmp_hdr.xsize))
-      pprint(lmp_hdr.name .. " : " .. lmp_hdr.typ .. " : " .. lmp_hdr.size)
-
-      table.insert(lmp_infos, lmp_hdr)
-    end
-
-    -- CREATE EXTRACTION DIR
-    if not path.exists(out_dir) then
-      if not fs.mkdir(out_dir) then
-        print("err: failed to create extraction directory: '" .. out_dir .. "'")
-        break
-      end
-    end
-
-    -- READ ALL LUMPS DATA
-    local is_err = false
-    for _, inf in pairs(lmp_infos) do
-      -- CONSTRUCT PAK ITEM PATH
-      local out_path = path.join(out_dir, inf.name)
-      local base = path.dirname(out_path)
-
-      -- CREATE PAK ITEM DIRECTORY IF NEEDED
-      if not path.exists(base) then
-        if not dir.makepath(base) then
-          print("err: failed to create wad items directory '" .. base .. "'")
-          is_err = true
-          break
-        end
-      end
-      if is_err then break end
-
-      -- CREATE THE WAD ITEM FILE
-      local itm_f, ierr = io.open(out_path, "wb")
-      if not itm_f then
-        print("err: failed to create output file '" .. out_path .. "'. reason: " .. ierr)
-        is_err = true
-        break
-      end
-
-      -- READ WAD ITEM DATA FROM INPUT
-      wad_f:seek("set", inf.pos)
-      -- !!! i'm not sure wether to use size or xsize!
-      local buf = wad_f:read(inf.size) -- TODO:sepi: handle the read error
-      if not buf then
-        print("err: failed to read data from input wad item '" .. inf.name .. "'. reason: " .. ierr)
-        itm_f:close()
-        break
-      end
-
-      -- WRITE THE READ WAD ITEM DATA INTO EXTRACTED FILE
-      if not itm_f:write(buf) then
-        print("err: failed to write data to output file '" .. out_path .. "'. reason: " .. ierr)
-        itm_f:close()
-        break
-      end
-      itm_f:close()
-    end
-  until true
-
-  -- CLEANUP
-  if wad_f then wad_f:close() end
 end
 
 --- ===============================================
