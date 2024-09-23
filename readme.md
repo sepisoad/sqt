@@ -50,7 +50,6 @@ items marked as ❌ are NOT implemented YET.
 
 
 ## other file types to cover soon
-- TEX
 - NAV
 - BSP
 - LIT
@@ -76,3 +75,4 @@ SQT relies on the following tools and open-source projects.
 # Notes:
 - [ ] maybe replace png with qoi: https://github.com/phoboslab/qoi
 - [ ] consider using this: https://github.com/KaisenAmin/c_std
+- [ ] post this on https://www.slipseer.com/
