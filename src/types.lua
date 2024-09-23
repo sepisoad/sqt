@@ -111,9 +111,35 @@ PakHeader_ = {
 ---@field Length integer
 PakItemHeader = {}
 
+---@alias PakItemsHeader PakItemHeader[]
+
 ---@enum PakItemHeader_
 PakItemHeader_ = {
   Name = 56,
   Position = 4,
   Length = 4,
 }
+
+
+--- ===============================================
+--- PakItemHeader
+--- ===============================================
+
+--- LumpHeader
+---@class LumpHeader
+---@field Width integer (4 bytes )
+---@field Height integer (4 bytes )
+---@field Data any (buffer)
+local LumpHeader = {}
+
+--- RGBColor
+---@class RGBColor
+---@field Red integer (1 byte unsigned, 0-255)
+---@field Green integer (1 byte unsigned, 0-255)
+---@field Blue integer (1 byte unsigned, 0-255)
+local RGBColor = {}
+
+--- PaletteData
+---@class PaletteData
+---@field Colors RGBColor[]
+local PaletteData = {}

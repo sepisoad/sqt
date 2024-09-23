@@ -104,7 +104,7 @@ end
 local load_pak_items_header = function(file, items_count)
   log.dbg("loading .PAK items header")
 
-  ---@type PakItemHeader[]
+  ---@type PakItemsHeader
   local items = {}
 
   for index = 1, items_count do
@@ -164,7 +164,7 @@ end
 
 --- -----------------------------------------------
 ---@param pak_file file*
----@param headers PakItemHeader[]
+---@param headers PakItemsHeader
 ---@param out_dir_path any
 local extract_items = function(pak_file, headers, out_dir_path)
   log.dbg("extracting items from .PAK file")
@@ -192,7 +192,7 @@ local get_pak_file_disk_size = function(pak_path)
 end
 
 --- -----------------------------------------------
----@param items PakItemHeader[]
+---@param items PakItemsHeader
 local print_items_name = function(items)
   log.dbg("listing items from .PAK file")
 
@@ -203,7 +203,7 @@ end
 
 --- -----------------------------------------------
 ---@param pak_path string
----@param items PakItemHeader[]
+---@param items PakItemsHeader
 ---@param items_count integer
 local print_pak_info = function(pak_path, items, items_count)
   log.dbg("printing .PAK file information")
@@ -233,11 +233,11 @@ end
 
 --- -----------------------------------------------
 ---@param files string[]
----@return PakItemHeader[]
+---@return PakItemsHeader
 local create_pak_items_header_from_files = function(files)
   log.dbg("creating .PAK items header info from the files in the source directory")
 
-  ---@type PakItemHeader[]
+  ---@type PakItemsHeader
   local pak_items_header = {}
   local header_size = PakHeader_.Code + PakHeader_.Offset + PakHeader_.Length
   local current_position = header_size
@@ -258,7 +258,7 @@ local create_pak_items_header_from_files = function(files)
 end
 
 --- -----------------------------------------------
----@param items_header PakItemHeader[]
+---@param items_header PakItemsHeader
 ---@return PakHeader
 local create_pak_header_from_pak_items_header = function(items_header)
   log.dbg(string.format("creating .PAK header info from its items header info"))
@@ -281,7 +281,7 @@ end
 
 --- -----------------------------------------------
 ---@param pak_header PakHeader
----@param pak_items_header PakItemHeader[]
+---@param pak_items_header PakItemsHeader
 ---@param input_dir_path string
 ---@param output_pak_path string
 local create_pak_file = function(pak_header, pak_items_header, input_dir_path, output_pak_path)
