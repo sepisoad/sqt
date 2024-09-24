@@ -65,39 +65,15 @@ lmp_decode:
 		decode \
 		-i ignore/quake/PAK/gfx/bigbox.lmp \
 		-p ignore/quake/PAK/gfx/palette.lmp \
-		-o ignore/LMP/X/Y/Z/gfx/bigbox.png
+		-o ignore/LMP/gfx/bigbox.png
 
 lmp_encode:
 	@./$(BIN) \
 		lmp \
 		encode \
-		-i ignore/LMP/X/Y/Z/gfx/bigbox.png \
+		-i ignore/LMP/gfx/bigbox.png \
 		-p ignore/quake/PAK/gfx/palette.lmp \
-		-o ignore/LMP/X/Y/Z/gfx/bigbox.lmp
-
-lmp_decode_me:
-	@./$(BIN) \
-		lmp \
-		decode \
-		-i ignore/LMP/X/Y/Z/gfx/bigbox.lmp \
-		-p ignore/quake/PAK/gfx/palette.lmp \
-		-o ignore/LMP/X/Y/Z/gfx/bigbox_me.png
-
-lmp_encode_non:
-	@./$(BIN) \
-		lmp \
-		encode \
-		-i ignore/LMP/X/Y/Z/gfx/sqt.png \
-		-p ignore/quake/PAK/gfx/palette.lmp \
-		-o ignore/LMP/X/Y/Z/gfx/sqt.lmp
-
-lmp_decode_non:
-	@./$(BIN) \
-		lmp \
-		decode \
-		-i ignore/LMP/X/Y/Z/gfx/sqt.lmp \
-		-p ignore/quake/PAK/gfx/palette.lmp \
-		-o ignore/LMP/X/Y/Z/gfx/sqt_non.png
+		-o ignore/LMP/gfx/bigbox.lmp
 
 ### ===============================================
 wad_info:
@@ -131,13 +107,15 @@ tex_info:
 	@./$(BIN) \
 		tex \
 		info \
-		-i ignore/quake/PAK/gfx/bigbox.lmp
+		-i ignore/WAD/gfx/*04awater1
 
 tex_decode:
 	@./$(BIN) \
 		tex \
-		encode \
-		BRRRRRR
+		decode \
+		-i ignore/WAD/gfx/*04awater1 \
+		-p ignore/WAD/gfx/palette \
+		-o ignore/WAD/gfx/04awater1.png
 
 tex_encode:
 	@./$(BIN) \

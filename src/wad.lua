@@ -1,9 +1,7 @@
-require('src.types')
-require('src.bits')
-
+require('libs.lua.app.types')
 local log = require('libs.lua.log.log')
-local utils = require('libs.lua.utils.path')
-local pprint = require('libs.lua.pprint.pprint')
+local paths = require('libs.lua.utils.paths')
+local bits = require('libs.lua.utils.bits')
 
 --- -----------------------------------------------
 ---@param p string
@@ -28,9 +26,9 @@ local load_wad_file_header = function(file)
 
   ---@type WadHeader
   local header = {
-    Code = ReadBuf(file, WadHeader_.Code),
-    ItemsCount = ReadI32(file, WadHeader_.ItemsCount),
-    Offset = ReadI32(file, WadHeader_.Offset),
+    Code = bits.r_buf(file, WadHeader_.Code),
+    ItemsCount = bits.r_i32(file, WadHeader_.ItemsCount),
+    Offset = bits.r_i32(file, WadHeader_.Offset),
   }
 
   return header
@@ -71,15 +69,15 @@ local load_wad_items_header = function(file, wad_header)
   for index = 1, wad_header.ItemsCount do
     ---@type WadItemHeader
     local item = {
-      Position = ReadI32(file, WadItemHeader_.Position),
-      Size = ReadI32(file, WadItemHeader_.Size),
-      CompressedSize = ReadI32(file, WadItemHeader_.CompressedSize),
+      Position = bits.r_i32(file, WadItemHeader_.Position),
+      Size = bits.r_i32(file, WadItemHeader_.Size),
+      CompressedSize = bits.r_i32(file, WadItemHeader_.CompressedSize),
       ---@diagnostic disable-next-line: assign-type-mismatch
-      Type = ReadChars(file, WadItemHeader_.Type),
+      Type = bits.r_chrs(file, WadItemHeader_.Type),
       ---@diagnostic disable-next-line: assign-type-mismatch
-      CompressionType = ReadU8(file, WadItemHeader_.CompressionType),
-      Paddings = ReadBuf(file, WadItemHeader_.Paddings),
-      Name = ReadCStr(file, WadItemHeader_.Name),
+      CompressionType = bits.r_u8(file, WadItemHeader_.CompressionType),
+      Paddings = bits.r_buf(file, WadItemHeader_.Paddings),
+      Name = bits.r_cstr(file, WadItemHeader_.Name),
     }
 
     items[index] = item
@@ -119,7 +117,7 @@ end
 local get_wad_file_disk_size = function(wad_path)
   log.dbg("calculating .WAD file disk size")
 
-  return utils.get_file_disk_size(wad_path)
+  return paths.get_file_disk_size(wad_path)
 end
 
 --- -----------------------------------------------
@@ -155,7 +153,7 @@ local print_items_name = function(items)
   log.dbg("listing items from .WAD file")
 
   for _, item in pairs(items) do
-    print(item.Name)
+    print(string.format("%s",item.Name))
   end
 end
 
@@ -164,7 +162,7 @@ end
 local create_extraction_toplevel_dir = function(p)
   log.dbg("creating top level extraction directory")
 
-  return utils.create_dir_if_doesnt_exist(p)
+  return paths.create_dir_if_doesnt_exist(p)
 end
 
 --- -----------------------------------------------
@@ -175,7 +173,7 @@ local get_extraction_file_path = function(dir_name, item_name)
   log.dbg("constracting .WAD item extraction file path")
 
 
-  return utils.join_item_path(dir_name, item_name)
+  return paths.join_item_path(dir_name, item_name)
 end
 
 --- -----------------------------------------------
@@ -183,7 +181,7 @@ end
 local create_extraction_item_dir = function(p)
   log.dbg("creating .WAD item extraction directory")
 
-  return utils.create_dir_if_doesnt_exist(p)
+  return paths.create_dir_if_doesnt_exist(p)
 end
 
 --- -----------------------------------------------
@@ -208,7 +206,7 @@ local read_wad_item_data = function(file, header)
   log.dbg("reading .WAD item data")
 
   file:seek("set", header.Position)
-  local data = ReadBuf(file, header.Size)
+  local data = bits.r_buf(file, header.Size)
   if not data then
     log.err(string.format("failed to read data from input .WAD item '%s'", header.Name))
     os.exit(1)
@@ -224,7 +222,7 @@ end
 local save_item_data_to_file = function(file, data, path)
   log.dbg("saving .WAD data into file")
 
-  if not WriteAll(file, data) then
+  if not bits.w_all(file, data) then
     log.err(string.format("failed to write .WAD item data to output file '%s'", path))
     os.exit(1)
   end

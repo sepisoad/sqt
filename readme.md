@@ -76,3 +76,4 @@ SQT relies on the following tools and open-source projects.
 - [ ] maybe replace png with qoi: https://github.com/phoboslab/qoi
 - [ ] consider using this: https://github.com/KaisenAmin/c_std
 - [ ] post this on https://www.slipseer.com/
+- [ ] post this on https://quakewiki.org

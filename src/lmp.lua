@@ -1,9 +1,8 @@
-require('src.types')
-require('src.bits')
-
+require('libs.lua.app.types')
 local png = require('spng')
 local log = require('libs.lua.log.log')
-local utils = require('libs.lua.utils.path')
+local bits = require('libs.lua.utils.bits')
+local paths = require('libs.lua.utils.paths')
 
 --- -----------------------------------------------
 ---@param p string
@@ -95,9 +94,9 @@ local load_palette_data = function(palette_f, palette_size)
   for _ = 1, num_of_colors do
     ---@type RGBColor
     local RGB = {
-      Red = ReadU8(palette_f, RGBColor_.Red),
-      Green = ReadU8(palette_f, RGBColor_.Green),
-      Blue = ReadU8(palette_f, RGBColor_.Blue)
+      Red = bits.r_u8(palette_f, RGBColor_.Red),
+      Green = bits.r_u8(palette_f, RGBColor_.Green),
+      Blue = bits.r_u8(palette_f, RGBColor_.Blue)
     }
     table.insert(colors, RGB)
   end
@@ -115,7 +114,7 @@ local convert_lump_to_png = function(lump_file_path, palette_file_path, lump_hea
   local err = nil
   png_data, err = png.encode(lump_header.Data, lump_header.Width, lump_header.Height, palette_data)
   if err then
-    log.err(string.format("failed to encode '%s' using '%s' to png", lump_file_path, palette_file_path), err)
+    log.err(string.format("failed to decode '%s' using '%s' to png", lump_file_path, palette_file_path), err)
     os.exit(1)
   end
 
@@ -158,9 +157,9 @@ local save_lump_file = function(lump_header, lump_file_path)
     os.exit(1)
   end
 
-  WriteI32(lump_f, lump_header.Width)
-  WriteI32(lump_f, lump_header.Height)
-  WriteAll(lump_f, lump_header.Data)
+  bits.w_i32(lump_f, lump_header.Width)
+  bits.w_i32(lump_f, lump_header.Height)
+  bits.w_all(lump_f, lump_header.Data)
 
   lump_f:close()
 end
@@ -170,7 +169,7 @@ end
 local create_toplevel_dir_for_output_file = function(file_path)
   log.dbg(string.format("creating top level directory for path '%s'", file_path))
 
-  local ok, err = utils.create_dir_for_file_path(file_path)
+  local ok, err = paths.create_dir_for_file_path(file_path)
   if err ~= nil then
     log.err(string.format("failed to create top level directory for file '%s'", file_path))
     os.exit(1)
@@ -189,7 +188,7 @@ local save_png_file = function(png_data, png_file_path)
     os.exit(1)
   end
 
-  local wsize = png_f:write(png_data)
+  local wsize = bits.w_all(png_f, png_data)
   if not wsize then
     log.err(string.format("failed to write png data to '%s'", png_file_path), err)
     os.exit(1)
@@ -206,9 +205,9 @@ local load_lump_file_header = function(lump_f)
 
   ---@type LumpHeader
   local header = {
-    Width = ReadI32(lump_f, LumpHeader_.Width),
-    Height = ReadI32(lump_f, LumpHeader_.Height),
-    Data = ReadAll(lump_f)
+    Width = bits.r_i32(lump_f, LumpHeader_.Width),
+    Height = bits.r_i32(lump_f, LumpHeader_.Height),
+    Data = bits.r_all(lump_f)
   }
   return header
 end
@@ -231,7 +230,7 @@ end
 local get_lump_file_disk_size = function(lump_file_path)
   log.dbg("calculating .LMP file disk size")
 
-  return utils.get_file_disk_size(lump_file_path)
+  return paths.get_file_disk_size(lump_file_path)
 end
 
 --- -----------------------------------------------

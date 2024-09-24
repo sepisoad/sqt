@@ -1,9 +1,8 @@
-require('src.types')
-require('src.bits')
-
+require('libs.lua.app.types')
 local png = require('spng')
 local log = require('libs.lua.log.log')
-local utils = require('libs.lua.utils.path')
+local bits = require('libs.lua.utils.bits')
+local paths = require('libs.lua.utils.paths')
 
 --- -----------------------------------------------
 ---@param p string
@@ -35,7 +34,7 @@ local load_png_data = function(p)
   end
 
 
-  png_data, err = png_f:read("a")
+  png_data, err =  bits.r_all(png_f)
   if not png_data then
     log.err(string.format("failed to read the '%s' data", p), err)
     os.exit(1)
@@ -96,9 +95,9 @@ local load_palette_data = function(palette_f, palette_size)
   for _ = 1, num_of_colors do
     ---@type RGBColor
     local RGB = {
-      Red = ReadU8(palette_f, RGBColor_.Red),
-      Green = ReadU8(palette_f, RGBColor_.Green),
-      Blue = ReadU8(palette_f, RGBColor_.Blue)
+      Red = bits.r_u8(palette_f, RGBColor_.Red),
+      Green = bits.r_u8(palette_f, RGBColor_.Green),
+      Blue = bits.r_u8(palette_f, RGBColor_.Blue)
     }
     table.insert(colors, RGB)
   end
@@ -116,7 +115,7 @@ local convert_tex_to_png = function(tex_file_path, palette_file_path, tex_header
   local err = nil
   png_data, err = png.encode(tex_header.Data, tex_header.Width, tex_header.Height, palette_data)
   if err then
-    log.err(string.format("failed to encode '%s' using '%s' to png", tex_file_path, palette_file_path), err)
+    log.err(string.format("failed to decode '%s' using '%s' to png", tex_file_path, palette_file_path), err)
     os.exit(1)
   end
 
@@ -127,8 +126,9 @@ end
 ---@param png_data file*
 ---@param palette_data any
 ---@param png_file_path string
+---@param tex_name string
 ---@return TexHeader
-local convert_png_to_tex = function(png_data, palette_data, png_file_path)
+local convert_png_to_tex = function(png_data, palette_data, png_file_path, tex_name)
   log.dbg("converting png image to tex")
 
   local tex_data, tex_width, tex_height = png.decode(png_data, palette_data)
@@ -160,10 +160,10 @@ local save_tex_file = function(tex_header, tex_file_path)
     os.exit(1)
   end
 
-  WriteChars(tex_f,tex_header.Name, TexHeader_.Name)
-  WriteI32(tex_f,tex_header.Width)
-  WriteI32(tex_f,tex_header.Height)
-  WriteAll(tex_f,tex_header.Data)
+  bits.w_chrs(tex_f,tex_header.Name, TexHeader_.Name)
+  bits.w_i32(tex_f,tex_header.Width)
+  bits.w_i32(tex_f,tex_header.Height)
+  bits.w_all(tex_f,tex_header.Data)
 
   tex_f:close()
 end
@@ -173,7 +173,7 @@ end
 local create_toplevel_dir_for_output_file = function(file_path)
   log.dbg(string.format("creating top level directory for path '%s'", file_path))
 
-  local ok, err = utils.create_dir_for_file_path(file_path)
+  local ok, err = paths.create_dir_for_file_path(file_path)
   if err ~= nil then
     log.err(string.format("failed to create top level directory for file '%s'", file_path))
     os.exit(1)
@@ -192,7 +192,7 @@ local save_png_file = function(png_data, png_file_path)
     os.exit(1)
   end
 
-  local wsize = png_f:write(png_data)
+  local wsize = bits.w_all(png_f, png_data)
   if not wsize then
     log.err(string.format("failed to write png data to '%s'", png_file_path), err)
     os.exit(1)
@@ -209,10 +209,10 @@ local load_tex_file_header = function(tex_f)
 
   ---@type TexHeader
   local header = {
-    Name = ReadCStr(tex_f, TexHeader_.Name),
-    Width = ReadI32(tex_f, TexHeader_.Width),
-    Height = ReadI32(tex_f, TexHeader_.Height),
-    Data = ReadAll(tex_f)
+    Name = bits.r_cstr(tex_f, TexHeader_.Name),
+    Width = bits.r_i32(tex_f, TexHeader_.Width),
+    Height = bits.r_i32(tex_f, TexHeader_.Height),
+    Data = bits.r_all(tex_f)
   }
   return header
 end
@@ -239,7 +239,7 @@ end
 local get_tex_file_disk_size = function(tex_file_path)
   log.dbg("calculating .TEX file disk size")
 
-  return utils.get_file_disk_size(tex_file_path)
+  return paths.get_file_disk_size(tex_file_path)
 end
 
 --- -----------------------------------------------
@@ -306,7 +306,7 @@ local cmd_encode = function(png_file_path, palette_file_path, tex_file_path)
   local palette_data = load_palette_data(palette_f, palette_size)
 
   local png_data = load_png_data(png_file_path)
-  local tex_header = convert_png_to_tex(png_data, palette_data, png_file_path)
+  local tex_header = convert_png_to_tex(png_data, palette_data, png_file_path, "TODO") --TODO:sepi
   verify_tex_header(tex_header, tex_file_path)
 
   create_toplevel_dir_for_output_file(tex_file_path)

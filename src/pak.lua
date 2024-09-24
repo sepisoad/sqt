@@ -1,8 +1,7 @@
-require('src.types')
-require('src.bits')
-
+require('libs.lua.app.types')
 local log = require('libs.lua.log.log')
-local utils = require('libs.lua.utils.path')
+local bits = require('libs.lua.utils.bits')
+local paths = require('libs.lua.utils.paths')
 local container = require('libs.lua.utils.container')
 
 --- -----------------------------------------------
@@ -42,9 +41,9 @@ local load_pak_file_header = function(file)
 
   ---@type PakHeader
   local header = {
-    Code = ReadBuf(file, PakHeader_.Code),
-    Offset = ReadI32(file, PakHeader_.Offset),
-    Length = ReadI32(file, PakHeader_.Length),
+    Code = bits.r_buf(file, PakHeader_.Code),
+    Offset = bits.r_i32(file, PakHeader_.Offset),
+    Length = bits.r_i32(file, PakHeader_.Length),
   }
 
   return header
@@ -89,7 +88,7 @@ local read_pak_item_data = function(file, header)
   log.dbg("reading .PAK item data")
 
   file:seek("set", header.Position)
-  local data = ReadBuf(file, header.Length)
+  local data = bits.r_buf(file, header.Length)
   if not data then
     log.err(string.format("failed to read data from input pak item '%s'", header.Name))
     os.exit(1)
@@ -112,9 +111,9 @@ local load_pak_items_header = function(file, items_count)
     ---@type PakItemHeader
     ---@diagnostic disable-next-line: missing-fields
     local item = {
-      Name = ReadCStr(file, (PakItemHeader_.Name)),
-      Position = ReadI32(file, PakItemHeader_.Position),
-      Length = ReadI32(file, PakItemHeader_.Length),
+      Name = bits.r_cstr(file, (PakItemHeader_.Name)),
+      Position = bits.r_i32(file, PakItemHeader_.Position),
+      Length = bits.r_i32(file, PakItemHeader_.Length),
     }
 
     items[index] = item
@@ -128,7 +127,7 @@ end
 local create_extraction_toplevel_dir = function(p)
   log.dbg("creating top level extraction directory")
 
-  return utils.create_dir_if_doesnt_exist(p)
+  return paths.create_dir_if_doesnt_exist(p)
 end
 
 --- -----------------------------------------------
@@ -136,7 +135,7 @@ end
 local create_extraction_item_dir = function(p)
   log.dbg("creating .PAK item extraction directory")
 
-  return utils.create_dir_if_doesnt_exist(p)
+  return paths.create_dir_if_doesnt_exist(p)
 end
 
 --- -----------------------------------------------
@@ -147,7 +146,7 @@ local get_extraction_file_path = function(dir_name, item_name)
   log.dbg("constracting .PAK item extraction file path")
 
 
-  return utils.join_item_path(dir_name, item_name)
+  return paths.join_item_path(dir_name, item_name)
 end
 
 --- -----------------------------------------------
@@ -157,7 +156,7 @@ end
 local save_item_data_to_file = function(file, data, path)
   log.dbg("saving pak pak data into file")
 
-  if not WriteAll(file, data) then
+  if not bits.w_all(file, data) then
     log.err(string.format("failed to write pak item data to output file '%s'", path))
     os.exit(1)
   end
@@ -189,7 +188,7 @@ end
 local get_pak_file_disk_size = function(pak_path)
   log.dbg("calculating .PAK file disk size")
 
-  return utils.get_file_disk_size(pak_path)
+  return paths.get_file_disk_size(pak_path)
 end
 
 --- -----------------------------------------------
@@ -229,7 +228,7 @@ end
 local get_all_files_in_a_directory_recursively = function(input_dir_path)
   log.dbg(string.format("listing all files in '%s' directory before creating .PAK file from it", input_dir_path))
 
-  return utils.list_files_in_dir(input_dir_path) or {}
+  return paths.list_files_in_dir(input_dir_path) or {}
 end
 
 --- -----------------------------------------------
@@ -247,7 +246,7 @@ local create_pak_items_header_from_files = function(files)
     ---@type PakItemHeader
     local pak_item_header = {
       Name = file,
-      Length = utils.get_file_disk_size(file),
+      Length = paths.get_file_disk_size(file),
       Position = current_position
     }
 
@@ -294,20 +293,20 @@ local create_pak_file = function(pak_header, pak_items_header, input_dir_path, o
     os.exit(1)
   end
 
-  WriteAll(pak_f, pak_header.Code)
-  WriteI32(pak_f, pak_header.Offset)
-  WriteI32(pak_f, pak_header.Length)
+  bits.w_all(pak_f, pak_header.Code)
+  bits.w_i32(pak_f, pak_header.Offset)
+  bits.w_i32(pak_f, pak_header.Length)
 
   for _, pak_item_header in ipairs(pak_items_header) do
-    local data = utils.read_file_data(pak_item_header.Name)
+    local data = paths.read_file_data(pak_item_header.Name)
     pak_f:write(data)
   end
 
   for _, pak_item_header in ipairs(pak_items_header) do
-    local new_name = utils.trim_path(pak_item_header.Name, input_dir_path)
-    WriteChars(pak_f, new_name, 56)
-    WriteI32(pak_f, pak_item_header.Position)
-    WriteI32(pak_f, pak_item_header.Length)
+    local new_name = paths.trim_path(pak_item_header.Name, input_dir_path)
+    bits.w_chrs(pak_f, new_name, 56)
+    bits.w_i32(pak_f, pak_item_header.Position)
+    bits.w_i32(pak_f, pak_item_header.Length)
   end
 
   pak_f:close()
