@@ -1,5 +1,4 @@
 require('libs.lua.app.types')
-require('src.types')
 local png = require('spng')
 local log = require('libs.lua.log.log')
 local bits = require('libs.lua.utils.bits')
@@ -95,9 +94,6 @@ local load_palette_data = function(palette_f, palette_size)
   for _ = 1, num_of_colors do
     ---@type RGBColor
     local RGB = {
-      Red = bits.r_u8(palette_f, RGBColor_.Red),
-      Green = bits.r_u8(palette_f, RGBColor_.Green),
-      Blue = bits.r_u8(palette_f, RGBColor_.Blue)
       Red = string.unpack("=B", palette_f:read(RGBColor_.Red)),
       Green = string.unpack("=B", palette_f:read(RGBColor_.Green)),
       Blue = string.unpack("=B", palette_f:read(RGBColor_.Blue))

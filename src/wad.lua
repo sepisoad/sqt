@@ -1,5 +1,4 @@
 require('libs.lua.app.types')
-require('src.types')
 local log = require('libs.lua.log.log')
 local paths = require('libs.lua.utils.paths')
 local bits = require('libs.lua.utils.bits')
