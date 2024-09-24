@@ -4,6 +4,7 @@ local log = require('libs.lua.log.log')
 local bits = require('libs.lua.utils.bits')
 local paths = require('libs.lua.utils.paths')
 
+
 --- -----------------------------------------------
 ---@param p string
 ---@return file*
@@ -88,16 +89,15 @@ local load_palette_data = function(palette_f, palette_size)
 
   ---@type PaletteData
   ---@diagnostic disable-next-line: missing-fields
-  local colors = { Colors = {} }
-  local rgb_size = RGBColor_.Red + RGBColor_.Green + RGBColor_.Blue
-  local num_of_colors = palette_size // rgb_size
+  local colors = {}
+  local num_of_colors = palette_size // RBG_COLOR_SIZE -- (rgb = 3 * 8 => 24 bits)
 
   for _ = 1, num_of_colors do
     ---@type RGBColor
     local RGB = {
-      Red = bits.r_u8(palette_f, RGBColor_.Red),
-      Green = bits.r_u8(palette_f, RGBColor_.Green),
-      Blue = bits.r_u8(palette_f, RGBColor_.Blue)
+      Red = string.unpack("=B", palette_f:read(TEX_PALETTE_COLOR_RED_SIZE)),
+      Green = string.unpack("=B", palette_f:read(TEX_PALETTE_COLOR_GREEN_SIZE)),
+      Blue = string.unpack("=B", palette_f:read(TEX_PALETTE_COLOR_BLUE_SIZE))
     }
     table.insert(colors, RGB)
   end
@@ -160,10 +160,9 @@ local save_tex_file = function(tex_header, tex_file_path)
     os.exit(1)
   end
 
-  bits.w_chrs(tex_f,tex_header.Name, TexHeader_.Name)
-  bits.w_i32(tex_f,tex_header.Width)
-  bits.w_i32(tex_f,tex_header.Height)
-  bits.w_all(tex_f,tex_header.Data)
+  tex_f:write(string.pack("=i", tex_header.Width))
+  tex_f:write(string.pack("=i", tex_header.Height))
+  tex_f:write(tex_header.Data)
 
   tex_f:close()
 end
@@ -209,10 +208,10 @@ local load_tex_file_header = function(tex_f)
 
   ---@type TexHeader
   local header = {
-    Name = bits.r_cstr(tex_f, TexHeader_.Name),
-    Width = bits.r_i32(tex_f, TexHeader_.Width),
-    Height = bits.r_i32(tex_f, TexHeader_.Height),
-    Data = bits.r_all(tex_f)
+    Name = string.unpack("z", tex_f:read(TEX_HEADER_NAME_SIZE)),
+    Width = string.unpack("=i", tex_f:read(TEX_HEADER_WIDTH_SIZE)),
+    Height = string.unpack("=i", tex_f:read(TEX_HEADER_HEIGHT_SIZE)),
+    Data = tex_f:read("a")
   }
   return header
 end

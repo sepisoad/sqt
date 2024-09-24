@@ -1,4 +1,5 @@
 require('libs.lua.app.types')
+require('src.types')
 local log = require('libs.lua.log.log')
 local paths = require('libs.lua.utils.paths')
 local bits = require('libs.lua.utils.bits')
@@ -26,9 +27,9 @@ local load_wad_file_header = function(file)
 
   ---@type WadHeader
   local header = {
-    Code = bits.r_buf(file, WadHeader_.Code),
-    ItemsCount = bits.r_i32(file, WadHeader_.ItemsCount),
-    Offset = bits.r_i32(file, WadHeader_.Offset),
+    Code = file:read(WadHeader_.Code),
+    ItemsCount = string.unpack("=i", file:read(WadHeader_.ItemsCount)),
+    Offset = string.unpack("=i", file:read(WadHeader_.Offset)),
   }
 
   return header
@@ -69,15 +70,13 @@ local load_wad_items_header = function(file, wad_header)
   for index = 1, wad_header.ItemsCount do
     ---@type WadItemHeader
     local item = {
-      Position = bits.r_i32(file, WadItemHeader_.Position),
-      Size = bits.r_i32(file, WadItemHeader_.Size),
-      CompressedSize = bits.r_i32(file, WadItemHeader_.CompressedSize),
-      ---@diagnostic disable-next-line: assign-type-mismatch
-      Type = bits.r_chrs(file, WadItemHeader_.Type),
-      ---@diagnostic disable-next-line: assign-type-mismatch
-      CompressionType = bits.r_u8(file, WadItemHeader_.CompressionType),
-      Paddings = bits.r_buf(file, WadItemHeader_.Paddings),
-      Name = bits.r_cstr(file, WadItemHeader_.Name),
+      Position = string.unpack("=i", file:read(WadItemHeader_.Position)),
+      Size = string.unpack("=i", file:read(WadItemHeader_.Size)),
+      CompressedSize = string.unpack("=i", file:read(WadItemHeader_.CompressedSize)),
+      Type = string.unpack("=c1", file:read(WadItemHeader_.Type)),
+      CompressionType = string.unpack("=B", file:read(WadItemHeader_.CompressionType)),
+      Paddings = file:read(WadItemHeader_.Paddings),
+      Name = string.unpack("z", file:read(WadItemHeader_.Name)),
     }
 
     items[index] = item
@@ -206,7 +205,7 @@ local read_wad_item_data = function(file, header)
   log.dbg("reading .WAD item data")
 
   file:seek("set", header.Position)
-  local data = bits.r_buf(file, header.Size)
+  local data = file:read(header.Size)
   if not data then
     log.err(string.format("failed to read data from input .WAD item '%s'", header.Name))
     os.exit(1)
@@ -222,7 +221,7 @@ end
 local save_item_data_to_file = function(file, data, path)
   log.dbg("saving .WAD data into file")
 
-  if not bits.w_all(file, data) then
+  if not file:write(data) then
     log.err(string.format("failed to write .WAD item data to output file '%s'", path))
     os.exit(1)
   end

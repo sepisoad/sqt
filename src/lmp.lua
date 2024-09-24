@@ -1,4 +1,5 @@
 require('libs.lua.app.types')
+require('src.types')
 local png = require('spng')
 local log = require('libs.lua.log.log')
 local bits = require('libs.lua.utils.bits')
@@ -97,6 +98,9 @@ local load_palette_data = function(palette_f, palette_size)
       Red = bits.r_u8(palette_f, RGBColor_.Red),
       Green = bits.r_u8(palette_f, RGBColor_.Green),
       Blue = bits.r_u8(palette_f, RGBColor_.Blue)
+      Red = string.unpack("=B", palette_f:read(RGBColor_.Red)),
+      Green = string.unpack("=B", palette_f:read(RGBColor_.Green)),
+      Blue = string.unpack("=B", palette_f:read(RGBColor_.Blue))
     }
     table.insert(colors, RGB)
   end
@@ -157,9 +161,9 @@ local save_lump_file = function(lump_header, lump_file_path)
     os.exit(1)
   end
 
-  bits.w_i32(lump_f, lump_header.Width)
-  bits.w_i32(lump_f, lump_header.Height)
-  bits.w_all(lump_f, lump_header.Data)
+  lump_f:write(string.pack("=i", lump_header.Width))
+  lump_f:write(string.pack("=i", lump_header.Height))
+  lump_f:write(lump_header.Data)
 
   lump_f:close()
 end
@@ -205,9 +209,9 @@ local load_lump_file_header = function(lump_f)
 
   ---@type LumpHeader
   local header = {
-    Width = bits.r_i32(lump_f, LumpHeader_.Width),
-    Height = bits.r_i32(lump_f, LumpHeader_.Height),
-    Data = bits.r_all(lump_f)
+    Width = string.unpack("=i", lump_f:read(LumpHeader_.Width)),
+    Height = string.unpack("=i", lump_f:read(LumpHeader_.Height)),
+    Data = lump_f:read("a")
   }
   return header
 end
