@@ -1,4 +1,4 @@
-# SEPI'D QUAKE TOOLS (SQT)
+# SEPI'S QUAKE TOOLS (SQT)
 
 ![logo](docs/sqt.png)
 
