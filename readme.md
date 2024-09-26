@@ -35,6 +35,7 @@ items marked as ❌ are NOT implemented YET.
 - ✅ `encode`: use this to encode a .qoi image into a .LMP file
 
 * ~this command automatically encodes a non-indexed PNG file into a lump file, converting its colors to the standard Quake palette using an approximation technique. No additional steps are required from the user, bellow is an example of the indexd version of the SQT qoi logo:~ this might not be true since dropping png in favour of qoi format
+
 ![logo](docs/sqt_idx.png)
 
 ## wad command
