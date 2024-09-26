@@ -1,8 +1,9 @@
 require('libs.lua.app.types')
-local png = require('spng')
 local log = require('libs.lua.log.log')
+local qoi = require('libs.lua.image.qoi')
 local bits = require('libs.lua.utils.bits')
 local paths = require('libs.lua.utils.paths')
+
 
 
 --- -----------------------------------------------
@@ -23,25 +24,25 @@ end
 --- -----------------------------------------------
 ---@param p string
 ---@return any
-local load_png_data = function(p)
-  log.dbg(string.format("openning the .png file from '%s'", p))
+local load_qoi_data = function(p)
+  log.dbg(string.format("openning the .qoi file from '%s'", p))
 
-  local png_f, png_data, err
+  local qoi_f, qoi_data, err
 
-  png_f, err = io.open(p, "rb")
-  if not png_f then
+  qoi_f, err = io.open(p, "rb")
+  if not qoi_f then
     log.err(string.format("failed to open '%s'", p), err)
     os.exit(1)
   end
 
 
-  png_data, err =  bits.r_all(png_f)
-  if not png_data then
+  qoi_data, err =  bits.r_all(qoi_f)
+  if not qoi_data then
     log.err(string.format("failed to read the '%s' data", p), err)
     os.exit(1)
   end
 
-  return png_data
+  return qoi_data
 end
 
 --- -----------------------------------------------
@@ -108,38 +109,38 @@ end
 ---@param tex_header TexHeader
 ---@param palette_data PaletteData
 ---@return any
-local convert_tex_to_png = function(tex_file_path, palette_file_path, tex_header, palette_data)
-  log.dbg("converting tex image to png")
+local convert_tex_to_qoi = function(tex_file_path, palette_file_path, tex_header, palette_data)
+  log.dbg("converting tex image to qoi")
 
-  local png_data = nil
+  local qoi_data = nil
   local err = nil
-  png_data, err = png.encode(tex_header.Data, tex_header.Width, tex_header.Height, palette_data)
+  qoi_data, err = qoi.encode_indexed(tex_header.Data, palette_data, tex_header.Width, tex_header.Height, )
   if err then
-    log.err(string.format("failed to decode '%s' using '%s' to png", tex_file_path, palette_file_path), err)
+    log.err(string.format("failed to decode '%s' using '%s' to qoi", tex_file_path, palette_file_path), err)
     os.exit(1)
   end
 
-  return png_data
+  return qoi_data
 end
 
 --- -----------------------------------------------
----@param png_data file*
+---@param qoi_data file*
 ---@param palette_data any
----@param png_file_path string
+---@param qoi_file_path string
 ---@param tex_name string
 ---@return TexHeader
-local convert_png_to_tex = function(png_data, palette_data, png_file_path, tex_name)
-  log.dbg("converting png image to tex")
+local convert_qoi_to_tex = function(qoi_data, palette_data, qoi_file_path, tex_name)
+  log.dbg("converting qoi image to tex")
 
-  local tex_data, tex_width, tex_height = png.decode(png_data, palette_data)
+  local tex_data, tex_width, tex_height = qoi.decode_indexed(qoi_data, palette_data)
   if not tex_data then
-    log.err(string.format("failed to convert png data to tex data from '%s'", png_file_path))
+    log.err(string.format("failed to convert qoi data to tex data from '%s'", qoi_file_path))
     os.exit(1)
   end
 
   ---@type TexHeader
   local tex_header = {
-    Name = tex_name, -- TODO: fix this
+    Name = tex_name,
     Width = tex_width,
     Height = tex_height,
     Data = tex_data
@@ -180,24 +181,24 @@ local create_toplevel_dir_for_output_file = function(file_path)
 end
 
 --- -----------------------------------------------
----@param png_data any
----@param png_file_path string
-local save_png_file = function(png_data, png_file_path)
-  log.dbg(string.format("saving png data into %s", png_file_path))
+---@param qoi_data any
+---@param qoi_file_path string
+local save_qoi_file = function(qoi_data, qoi_file_path)
+  log.dbg(string.format("saving qoi data into %s", qoi_file_path))
 
-  local png_f, err = io.open(png_file_path, "wb")
-  if not png_f then
-    log.err(string.format("failed to open '%s' for writing png data", png_file_path), err)
+  local qoi_f, err = io.open(qoi_file_path, "wb")
+  if not qoi_f then
+    log.err(string.format("failed to open '%s' for writing qoi data", qoi_file_path), err)
     os.exit(1)
   end
 
-  local wsize = bits.w_all(png_f, png_data)
+  local wsize = bits.w_all(qoi_f, qoi_data)
   if not wsize then
-    log.err(string.format("failed to write png data to '%s'", png_file_path), err)
+    log.err(string.format("failed to write qoi data to '%s'", qoi_file_path), err)
     os.exit(1)
   end
 
-  png_f:close()
+  qoi_f:close()
 end
 
 --- -----------------------------------------------
@@ -275,8 +276,8 @@ end
 --- ===============================================
 ---@param tex_file_path string
 ---@param palette_file_path string
----@param png_file_path string
-local cmd_decode = function(tex_file_path, palette_file_path, png_file_path)
+---@param qoi_file_path string
+local cmd_decode = function(tex_file_path, palette_file_path, qoi_file_path)
   local tex_f = open_tex_file(tex_file_path)
   local tex_header = load_tex_file_header(tex_f)
   verify_tex_header(tex_header, tex_file_path)
@@ -284,9 +285,9 @@ local cmd_decode = function(tex_file_path, palette_file_path, png_file_path)
   local palette_size = get_palette_size(palette_f)
   verify_palette(tex_file_path, palette_size)
   local palette_data = load_palette_data(palette_f, palette_size)
-  local png_data = convert_tex_to_png(tex_file_path, palette_file_path, tex_header, palette_data)
-  create_toplevel_dir_for_output_file(png_file_path)
-  save_png_file(png_data, png_file_path)
+  local qoi_data = convert_tex_to_qoi(tex_file_path, palette_file_path, tex_header, palette_data)
+  create_toplevel_dir_for_output_file(qoi_file_path)
+  save_qoi_file(qoi_data, qoi_file_path)
 
   palette_f:close()
   tex_f:close()
@@ -297,15 +298,15 @@ end
 --- ===============================================
 ---@param tex_file_path string
 ---@param palette_file_path string
----@param png_file_path string
-local cmd_encode = function(png_file_path, palette_file_path, tex_file_path)
+---@param qoi_file_path string
+local cmd_encode = function(qoi_file_path, palette_file_path, tex_file_path)
   local palette_f = open_palette_file(palette_file_path)
   local palette_size = get_palette_size(palette_f)
   verify_palette(tex_file_path, palette_size)
   local palette_data = load_palette_data(palette_f, palette_size)
 
-  local png_data = load_png_data(png_file_path)
-  local tex_header = convert_png_to_tex(png_data, palette_data, png_file_path, "TODO") --TODO:sepi
+  local qoi_data = load_qoi_data(qoi_file_path)
+  local tex_header = convert_qoi_to_tex(qoi_data, palette_data, qoi_file_path, "TODO") --TODO:sepi
   verify_tex_header(tex_header, tex_file_path)
 
   create_toplevel_dir_for_output_file(tex_file_path)

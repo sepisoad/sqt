@@ -3,7 +3,6 @@
 #include <lua5.4/lauxlib.h>
 
 #include "libs/c/lfs/lfs.h"
-#include "libs/c/spng/module.h"
 
 #define ENTRY_SCRIPT "./src/init.lua"
 
@@ -14,7 +13,6 @@ int main(int argc, char** argv) {
 
   // load custom modules
   open_module_lfs(L);
-  open_module_spng(L);
 
   // redirect input args to the main lua script
   for (int i = 0; i < argc; i++) {

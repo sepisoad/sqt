@@ -1,8 +1,7 @@
 require('libs.lua.app.types')
-local png = require('spng')
 local log = require('libs.lua.log.log')
-local bits = require('libs.lua.utils.bits')
 local paths = require('libs.lua.utils.paths')
+local qoi = require('libs.lua.image.qoi')
 
 --- -----------------------------------------------
 ---@param p string
@@ -22,25 +21,25 @@ end
 --- -----------------------------------------------
 ---@param p string
 ---@return any
-local load_png_data = function(p)
-  log.dbg(string.format("openning the .png file from '%s'", p))
+local load_qoi_data = function(p)
+  log.dbg(string.format("openning the .qoi file from '%s'", p))
 
-  local png_f, png_data, err
+  local qoi_f, qoi_data, err
 
-  png_f, err = io.open(p, "rb")
-  if not png_f then
+  qoi_f, err = io.open(p, "rb")
+  if not qoi_f then
     log.err(string.format("failed to open '%s'", p), err)
     os.exit(1)
   end
 
 
-  png_data, err = png_f:read("a")
-  if not png_data then
+  qoi_data, err = qoi_f:read("a")
+  if not qoi_data then
     log.err(string.format("failed to read the '%s' data", p), err)
     os.exit(1)
   end
 
-  return png_data
+  return qoi_data
 end
 
 --- -----------------------------------------------
@@ -107,31 +106,31 @@ end
 ---@param lump_header LumpHeader
 ---@param palette_data PaletteData
 ---@return any
-local convert_lump_to_png = function(lump_file_path, palette_file_path, lump_header, palette_data)
-  log.dbg("converting lump image to png")
+local convert_lump_to_qoi = function(lump_file_path, palette_file_path, lump_header, palette_data)
+  log.dbg("converting lump image to qoi")
 
-  local png_data = nil
+  local qoi_data = nil
   local err = nil
-  png_data, err = png.encode(lump_header.Data, lump_header.Width, lump_header.Height, palette_data)
+
+  qoi_data, err = qoi.encode_indexed(lump_header.Data, palette_data, lump_header.Width, lump_header.Height)
   if err then
-    log.err(string.format("failed to decode '%s' using '%s' to png", lump_file_path, palette_file_path), err)
+    log.err(string.format("failed to decode '%s' using '%s' to qoi", lump_file_path, palette_file_path), err)
     os.exit(1)
   end
-
-  return png_data
+  return qoi_data
 end
 
 --- -----------------------------------------------
----@param png_data file*
+---@param qoi_data file*
 ---@param palette_data any
----@param png_file_path string
+---@param qoi_file_path string
 ---@return LumpHeader
-local convert_png_to_lump = function(png_data, palette_data, png_file_path)
-  log.dbg("converting png image to lump")
+local convert_qoi_to_lump = function(qoi_data, palette_data, qoi_file_path)
+  log.dbg("converting qoi image to lump")
 
-  local lump_data, lump_width, lump_height = png.decode(png_data, palette_data)
+  local lump_data, lump_width, lump_height = qoi.decode_indexed(qoi_data, palette_data)
   if not lump_data then
-    log.err(string.format("failed to convert png data to lump data from '%s'", png_file_path))
+    log.err(string.format("failed to convert qoi data to lump data from '%s'", qoi_file_path))
     os.exit(1)
   end
 
@@ -177,24 +176,24 @@ local create_toplevel_dir_for_output_file = function(file_path)
 end
 
 --- -----------------------------------------------
----@param png_data any
----@param png_file_path string
-local save_png_file = function(png_data, png_file_path)
-  log.dbg(string.format("saving png data into %s", png_file_path))
+---@param qoi_data any
+---@param qoi_file_path string
+local save_qoi_file = function(qoi_data, qoi_file_path)
+  log.dbg(string.format("saving qoi data into %s", qoi_file_path))
 
-  local png_f, err = io.open(png_file_path, "wb")
-  if not png_f then
-    log.err(string.format("failed to open '%s' for writing png data", png_file_path), err)
+  local qoi_f, err = io.open(qoi_file_path, "wb")
+  if not qoi_f then
+    log.err(string.format("failed to open '%s' for writing qoi data", qoi_file_path), err)
     os.exit(1)
   end
 
-  local wsize = bits.w_all(png_f, png_data)
-  if not wsize then
-    log.err(string.format("failed to write png data to '%s'", png_file_path), err)
+  local wsize2 = qoi_f:write(qoi_data)
+  if not wsize2 then
+    log.err(string.format("failed to write qoi data to '%s'", qoi_file_path), err)
     os.exit(1)
   end
 
-  png_f:close()
+  qoi_f:close()
 end
 
 --- -----------------------------------------------
@@ -266,8 +265,8 @@ end
 --- ===============================================
 ---@param lump_file_path string
 ---@param palette_file_path string
----@param png_file_path string
-local cmd_decode = function(lump_file_path, palette_file_path, png_file_path)
+---@param qoi_file_path string
+local cmd_decode = function(lump_file_path, palette_file_path, qoi_file_path)
   local lump_f = open_lump_file(lump_file_path)
   local lump_header = load_lump_file_header(lump_f)
   verify_lump_header(lump_header, lump_file_path)
@@ -275,9 +274,9 @@ local cmd_decode = function(lump_file_path, palette_file_path, png_file_path)
   local palette_size = get_palette_size(palette_f)
   verify_palette(lump_file_path, palette_size)
   local palette_data = load_palette_data(palette_f, palette_size)
-  local png_data = convert_lump_to_png(lump_file_path, palette_file_path, lump_header, palette_data)
-  create_toplevel_dir_for_output_file(png_file_path)
-  save_png_file(png_data, png_file_path)
+  local qoi_data = convert_lump_to_qoi(lump_file_path, palette_file_path, lump_header, palette_data)
+  create_toplevel_dir_for_output_file(qoi_file_path)
+  save_qoi_file(qoi_data, qoi_file_path)
 
   palette_f:close()
   lump_f:close()
@@ -288,15 +287,15 @@ end
 --- ===============================================
 ---@param lump_file_path string
 ---@param palette_file_path string
----@param png_file_path string
-local cmd_encode = function(png_file_path, palette_file_path, lump_file_path)
+---@param qoi_file_path string
+local cmd_encode = function(qoi_file_path, palette_file_path, lump_file_path)
   local palette_f = open_palette_file(palette_file_path)
   local palette_size = get_palette_size(palette_f)
   verify_palette(lump_file_path, palette_size)
   local palette_data = load_palette_data(palette_f, palette_size)
 
-  local png_data = load_png_data(png_file_path)
-  local lump_header = convert_png_to_lump(png_data, palette_data, png_file_path)
+  local qoi_data = load_qoi_data(qoi_file_path)
+  local lump_header = convert_qoi_to_lump(qoi_data, palette_data, qoi_file_path)
   verify_lump_header(lump_header, lump_file_path)
 
   create_toplevel_dir_for_output_file(lump_file_path)

@@ -8,10 +8,7 @@ INC = -I.
 BIN = sqt
 
 SRC = \
-	libs/c/minizip/miniz.c \
 	libs/c/lfs/lfs.c \
-	libs/c/spng/spng.c \
-	libs/c/spng/module.c \
 	src/main.c
 
 clean:
@@ -65,15 +62,24 @@ lmp_decode:
 		decode \
 		-i ignore/quake/PAK/gfx/bigbox.lmp \
 		-p ignore/quake/PAK/gfx/palette.lmp \
-		-o ignore/LMP/gfx/bigbox.png
+		-o ignore/LMP/gfx/bigbox.qoi
 
 lmp_encode:
 	@./$(BIN) \
 		lmp \
 		encode \
-		-i ignore/LMP/gfx/bigbox.png \
+		-i ignore/LMP/gfx/bigbox.qoi \
 		-p ignore/quake/PAK/gfx/palette.lmp \
 		-o ignore/LMP/gfx/bigbox.lmp
+
+lmp_decode_me:
+	@./$(BIN) \
+		lmp \
+		decode \
+		-i ignore/LMP/gfx/bigbox.lmp \
+		-p ignore/quake/PAK/gfx/palette.lmp \
+		-o ignore/LMP/gfx/bigbox-me.qoi
+
 
 ### ===============================================
 wad_info:
@@ -115,7 +121,7 @@ tex_decode:
 		decode \
 		-i ignore/WAD/gfx/*04awater1 \
 		-p ignore/WAD/gfx/palette \
-		-o ignore/WAD/gfx/04awater1.png
+		-o ignore/WAD/gfx/04awater1.xxxxx
 
 tex_encode:
 	@./$(BIN) \
