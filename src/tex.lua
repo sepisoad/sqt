@@ -77,7 +77,7 @@ local convert_tex_to_qoi = function(tex_file_path, palette_file_path, tex_header
 
   local qoi_data = nil
   local err = nil
-  qoi_data, err = qoi.encode_indexed(tex_header.Data, palette_data, tex_header.Width, tex_header.Height, )
+  qoi_data, err = qoi.encode_indexed(tex_header.Data, palette_data, tex_header.Width, tex_header.Height)
   if err then
     log.fatal(string.format("failed to decode '%s' using '%s' to qoi", tex_file_path, palette_file_path), err)
   end
@@ -154,10 +154,10 @@ local load_tex_file_header = function(tex_f)
 
   ---@type TexHeader
   local header = {
-    Name = string.unpack("z", tex_f:read(TEX_HEADER_NAME_SIZE)),
-    Width = string.unpack("=i", tex_f:read(TEX_HEADER_WIDTH_SIZE)),
-    Height = string.unpack("=i", tex_f:read(TEX_HEADER_HEIGHT_SIZE)),
-    Data = tex_f:read("a")
+    Name = read.cstring(tex_f, TexHeader._Name),
+    Width = read.integer(tex_f),
+    Height = read.integer(tex_f),
+    Data = read.all(tex_f)
   }
   return header
 end
@@ -173,7 +173,7 @@ local verify_tex_header = function(header, tex_file_path)
      header.Width <= 0 or
      header.Height <= 0 or
      header.Data == nil then
-    printfatalerr: the '" .. tex_file_path .. "' file is not valid")
+    log.fatal("the '" .. tex_file_path .. "' file is not valid")
   end
 end
 

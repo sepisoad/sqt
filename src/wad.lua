@@ -14,7 +14,7 @@ local load_wad_file_header = function(file)
   log.dbg("loading .WAD file header")
 
   return {
-    Code = read.string(file, WadHeader_.Code),
+    Code = read.string(file, #WadHeader._Magic),
     ItemsCount = read.integer(file),
     Offset = read.integer(file),
   }
@@ -25,7 +25,7 @@ end
 local verify_wad_header = function(header)
   log.dbg("verifying .WAD file header")
 
-  if header.Code ~= WadHeader_.CODE or
+  if header.Code ~= WadHeader._Magic or
       header.ItemsCount <= 0 or
       header.Offset <= 0 then
     log.fatal(string.format(".WAD file header is not valid"))
@@ -57,10 +57,10 @@ local load_wad_items_header = function(file, wad_header)
       Position = read.integer(file),
       Size = read.integer(file),
       CompressedSize = read.integer(file),
-      Type = read.string(file, WadItemHeader_.Type),
+      Type = read.string(file, WadItemHeader._Type),
       CompressionType = read.byte(file),
-      Paddings = read.bytes(file, WadItemHeader_.Paddings),
-      Name = read.cstring(file, WadItemHeader_.Name),
+      Paddings = read.bytes(file, WadItemHeader._Paddings),
+      Name = read.cstring(file, WadItemHeader._Name),
     }
 
     items[index] = item

@@ -16,7 +16,7 @@ local load_pak_file_header = function(file)
 
 	---@type PakHeader
 	local header = {
-		Code = read.bytes(file, PakHeader_.Code),
+		Code = read.bytes(file, #PakHeader._Magic),
 		Offset = read.integer(file),
 		Length = read.integer(file),
 	}
@@ -29,7 +29,7 @@ end
 local verify_pak_header = function(header)
 	log.dbg("verifying .PAK file header")
 
-	if header.Code ~= PakHeader_.CODE or header.Length <= 0 or header.Offset <= 0 then
+	if header.Code ~= PakHeader._Magic or header.Length <= 0 or header.Offset <= 0 then
 		log.fatal(string.format(".PAK file header is not valid"))
 	end
 end
@@ -39,8 +39,7 @@ end
 local calculate_pak_items_count = function(header)
 	log.dbg("calculating the number of items in the .PAK")
 
-	local header_size = PakItemHeader_.Name + PakItemHeader_.Position + PakItemHeader_.Length
-	return header.Length / header_size
+	return header.Length / PakItemHeader._Size
 end
 
 --- -----------------------------------------------
@@ -80,7 +79,7 @@ local load_pak_items_header = function(file, items_count)
 
 	for index = 1, items_count do
 		items[index] = {
-			Name = read.cstring(file, PakItemHeader_.Name),
+			Name = read.cstring(file, PakItemHeader._Name),
 			Position = read.integer(file),
 			Length = read.integer(file),
 		}
@@ -164,7 +163,7 @@ local create_pak_items_header_from_files = function(files)
 
 	---@type PakItemsHeader
 	local pak_items_header = {}
-	local header_size = PakHeader_.Code + PakHeader_.Offset + PakHeader_.Length
+	local header_size = PakHeader._Size
 	local current_position = header_size
 
 	for _, file in ipairs(files) do
@@ -188,13 +187,11 @@ end
 local create_pak_header_from_pak_items_header = function(items_header)
 	log.dbg(string.format("creating .PAK header info from its items header info"))
 
-	local header_size = PakHeader_.Code + PakHeader_.Offset + PakHeader_.Length
-	local item_header_size = PakItemHeader_.Name + PakItemHeader_.Position + PakItemHeader_.Length
 	---@type PakHeader
 	local pak_header = {
-		Code = "PACK",
-		Offset = header_size,
-		Length = #items_header * item_header_size
+		Code = PakHeader._Magic,
+		Offset = PakHeader._Size,
+		Length = #items_header * PakItemHeader._Size
 	}
 
 	for _, item in ipairs(items_header) do

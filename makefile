@@ -47,13 +47,13 @@ pak_create:
 		pak \
 		create \
 		-i ignore/quake/PAK/ \
-		-o ignore/mypak.PAK
+		-o ignore/mypak.pak
 
 pak_extract_me:
 	@./$(BIN) \
 		pak \
 		extract \
-		-i ignore/mypak.PAK \
+		-i ignore/mypak.pak \
 		-o ignore/mypak/
 
 ### ===============================================

@@ -26,8 +26,7 @@ local load_palette_data_from_file = function(path)
 
   ---@type PaletteData
   local colors = { Colors = {} }
-  local rgb_size = RGBColor_.Red + RGBColor_.Green + RGBColor_.Blue
-  local num_of_colors = plt_fsize // rgb_size
+  local num_of_colors = plt_fsize // RGBColor._Size
 
   for _ = 1, num_of_colors do
     ---@type RGBColor
