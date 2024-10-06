@@ -54,14 +54,14 @@ local load_palette_data = function(palette_f, palette_size)
   ---@type PaletteData
   ---@diagnostic disable-next-line: missing-fields
   local colors = {}
-  local num_of_colors = palette_size // RBG_COLOR_SIZE -- (rgb = 3 * 8 => 24 bits)
+  local num_of_colors = palette_size // RGBColor._Size
 
   for _ = 1, num_of_colors do
     ---@type RGBColor
     local RGB = {
-      Red = string.unpack("=B", palette_f:read(TEX_PALETTE_COLOR_RED_SIZE)),
-      Green = string.unpack("=B", palette_f:read(TEX_PALETTE_COLOR_GREEN_SIZE)),
-      Blue = string.unpack("=B", palette_f:read(TEX_PALETTE_COLOR_BLUE_SIZE))
+      Red = read.byte(palette_f),
+      Green = read.byte(palette_f),
+      Blue = read.byte(palette_f)
     }
     table.insert(colors, RGB)
   end
@@ -140,7 +140,7 @@ local save_qoi_file = function(qoi_data, qoi_file_path)
   log.dbg(string.format("saving qoi data into %s", qoi_file_path))
 
   local qoi_f <close> = xio.open(qoi_file_path, "wb")
-  local wsize = bits.w_all(qoi_f, qoi_data)
+  local wsize = write.all(qoi_f, qoi_data)
   if not wsize then
     log.fatal(string.format("failed to write qoi data to '%s'", qoi_file_path))
   end

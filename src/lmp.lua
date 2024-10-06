@@ -98,7 +98,6 @@ end
 ---@param qoi_file_path string
 local cmd_decode = function(lump_file_path, palette_file_path, qoi_file_path)
   local lump_header = sqt.load_lump_data_from_file(lump_file_path)
-  print_lump_info(lump_file_path, lump_header)
   local palette_data = sqt.load_palette_data_from_file(palette_file_path)
   local qoi_data = convert_lump_to_qoi(lump_file_path, palette_file_path, lump_header, palette_data)
   create_toplevel_dir_for_output_file(qoi_file_path)

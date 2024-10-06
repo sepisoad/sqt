@@ -126,9 +126,9 @@ tex_decode:
 	@./$(BIN) \
 		tex \
 		decode \
-		-i ignore/WAD/gfx/*04awater1 \
+		-i ignore/WAD/gfx/arrow_m \
 		-p ignore/WAD/gfx/palette \
-		-o ignore/WAD/gfx/04awater1.xxxxx
+		-o ignore/GFX/WAD/arrow_m.qoi
 
 tex_encode:
 	@./$(BIN) \
