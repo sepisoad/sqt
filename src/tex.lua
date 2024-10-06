@@ -5,8 +5,8 @@ local qoi = require('libs.lua.image.qoi')
 local bits = require('libs.lua.utils.bits')
 local paths = require('libs.lua.utils.paths')
 
-local reader = bits.reader
-local writer = bits.writer
+local read = bits.reader
+local write = bits.writer
 
 
 --- -----------------------------------------------
@@ -16,7 +16,7 @@ local load_qoi_data = function(p)
   log.dbg(string.format("openning the .qoi file from '%s'", p))
 
   local qoi_f <close> = xio.open(p, "rb")
-  local qoi_data =  reader.all(qoi_f)
+  local qoi_data =  read.all(qoi_f)
   if not qoi_data then
     log.fatal(string.format("failed to read the '%s' data", p))
   end

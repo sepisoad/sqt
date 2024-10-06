@@ -4,6 +4,7 @@ local qoi = require('libs.lua.image.qoi')
 local xio = require('libs.lua.utils.io')
 local bits = require('libs.lua.utils.bits')
 local paths = require('libs.lua.utils.paths')
+local sqt = require('src.common')
 
 local read = bits.reader
 local write = bits.writer
@@ -21,50 +22,6 @@ local load_qoi_data = function(p)
   end
 
   return qoi_data
-end
-
---- -----------------------------------------------
----@param palette_f file*
-local get_palette_size = function(palette_f)
-  log.dbg("calclulating palette size")
-
-  local plt_fsize = palette_f:seek("end", 0)
-  palette_f:seek("set", 0)
-  return plt_fsize
-end
-
---- -----------------------------------------------
----@param size integer
-local verify_palette = function(palette_file_path, size)
-  log.dbg(string.format("verifying palette file '%s'", palette_file_path))
-
-  if size <= 0 then
-    log.fatal("err: the palette '" .. palette_file_path .. "' file is not valid")
-  end
-end
-
---- -----------------------------------------------
----@param palette_f file*
----@param palette_size integer
----@return PaletteData
-local load_palette_data = function(palette_f, palette_size)
-  log.dbg("loading palette color data")
-
-  ---@type PaletteData
-  local colors = { Colors = {} }
-  local rgb_size = RGBColor_.Red + RGBColor_.Green + RGBColor_.Blue
-  local num_of_colors = palette_size // rgb_size
-
-  for _ = 1, num_of_colors do
-    ---@type RGBColor
-    local RGB = {
-      Red = read.byte(palette_f),
-      Green = read.byte(palette_f),
-      Blue = read.byte(palette_f)
-    }
-    table.insert(colors, RGB)
-  end
-  return colors
 end
 
 --- -----------------------------------------------
@@ -147,17 +104,6 @@ local load_lump_file_header = function(lump_f)
 end
 
 --- -----------------------------------------------
----@param header LumpHeader
----@param lump_file_path string
-local verify_lump_header = function(header, lump_file_path)
-  log.dbg("verifying .LMP file header")
-
-  if header.Width <= 0 or header.Height <= 0 or header.Data == nil then
-    log.fatal(string.format("the lump file '%s' is not valid"), lump_file_path)
-  end
-end
-
---- -----------------------------------------------
 ---@param lump_file_path string
 ---@param lump_header LumpHeader
 local print_lump_info = function(lump_file_path, lump_header)
@@ -178,9 +124,7 @@ end
 --- ===============================================
 ---@param lump_file_path string
 local cmd_info = function(lump_file_path)
-  local lump_f <close> = xio.open(lump_file_path, "rb")
-  local lump_header = load_lump_file_header(lump_f)
-  verify_lump_header(lump_header, lump_file_path)
+  local lump_header = sqt.load_lump_data_from_file(lump_file_path)
   print_lump_info(lump_file_path, lump_header)
 end
 
@@ -191,13 +135,9 @@ end
 ---@param palette_file_path string
 ---@param qoi_file_path string
 local cmd_decode = function(lump_file_path, palette_file_path, qoi_file_path)
-  local lump_f <close> = xio.open(lump_file_path, "rb")
-  local lump_header = load_lump_file_header(lump_f)
-  verify_lump_header(lump_header, lump_file_path)
-  local palette_f <close> = xio.open(palette_file_path, "rb")
-  local palette_size = get_palette_size(palette_f)
-  verify_palette(lump_file_path, palette_size)
-  local palette_data = load_palette_data(palette_f, palette_size)
+  local lump_header = sqt.load_lump_data_from_file(lump_file_path)
+  print_lump_info(lump_file_path, lump_header)
+  local palette_data = sqt.load_palette_data_from_file(palette_file_path)
   local qoi_data = convert_lump_to_qoi(lump_file_path, palette_file_path, lump_header, palette_data)
   create_toplevel_dir_for_output_file(qoi_file_path)
   save_qoi_file(qoi_data, qoi_file_path)
@@ -211,14 +151,9 @@ end
 ---@param qoi_file_path string
 local cmd_encode = function(qoi_file_path, palette_file_path, lump_file_path)
   local palette_f <close> = xio.open(palette_file_path, "rb")
-  local palette_size = get_palette_size(palette_f)
-  verify_palette(lump_file_path, palette_size)
-  local palette_data = load_palette_data(palette_f, palette_size)
-
+  local palette_data = sqt.load_palette_data_from_file(palette_file_path)
   local qoi_data = load_qoi_data(qoi_file_path)
   local lump_header = convert_qoi_to_lump(qoi_data, palette_data, qoi_file_path)
-  verify_lump_header(lump_header, lump_file_path)
-
   create_toplevel_dir_for_output_file(lump_file_path)
   save_lump_file(lump_header, lump_file_path)
 end

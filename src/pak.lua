@@ -218,8 +218,8 @@ local create_pak_file = function(header, items_header, input_dir, output_pak)
 	write.integer(pak_f, header.Offset)
 	write.integer(pak_f, header.Length)
 
-	for _, pak_item_header in ipairs(items_header) do
-		local data = paths.read_file_data(pak_item_header.Name)
+	for _, item_header in ipairs(items_header) do
+		local data = paths.read_file_data(item_header.Name)
 		write.all(pak_f, data)
 	end
 
