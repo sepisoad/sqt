@@ -1,9 +1,9 @@
-BYTE_SIZE = 1
-SHORT_SIZE = BYTE_SIZE * 2
-INTEGER_SIZE = SHORT_SIZE * 2
-LONG_SIZE = INTEGER_SIZE * 2
-FLOAT_SIZE = INTEGER_SIZE
-DOUBLE_SIZE = LONG_SIZE
+local BYTE_SIZE <const> = 1
+local SHORT_SIZE <const> = BYTE_SIZE * 2
+local INTEGER_SIZE <const> = SHORT_SIZE * 2
+local LONG_SIZE <const> = INTEGER_SIZE * 2
+local FLOAT_SIZE <const> = INTEGER_SIZE
+local DOUBLE_SIZE <const> = LONG_SIZE
 
 ---========================================
 --- READER
@@ -180,7 +180,7 @@ end
 
 --- write_string
 ---@param f file*
----@param value number
+---@param value string
 ---@param size integer
 ---@return file*|nil
 local write_string = function (f, value, size)
@@ -202,14 +202,12 @@ end
 
 return {
   reader = {
-    number = {
-      byte = read_byte,
-      short = read_short,
-      integer = read_integer,
-      long = read_long,
-      size = read_size,
-      float = read_float,
-    },
+    byte = read_byte,
+    short = read_short,
+    integer = read_integer,
+    long = read_long,
+    size = read_size,
+    float = read_float,
     string = read_string,
     cstring = read_cstring,
     line = read_line,
@@ -217,18 +215,13 @@ return {
     bytes = read_bytes,
   },
   writer = {
-    number = {
-      byte = write_byte,
-      short = write_short,
-      integer = write_integer,
-      long = write_long,
-      size = write_size,
-      float = write_float,
-    },
+    byte = write_byte,
+    short = write_short,
+    integer = write_integer,
+    long = write_long,
+    size = write_size,
+    float = write_float,
     string = write_string,
-    -- cstring = write_cstring, -- does it even make sense!
-    -- line = write_line, -- does it even make sense!
     all = write_all,
-    -- bytes = write_bytes, -- does it even make sense!
   }
 }

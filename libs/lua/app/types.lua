@@ -41,7 +41,7 @@ WadHeader_ = {
 ---@field Size integer
 ---@field CompressedSize integer
 ---@field Type WadItemType
----@field CompressionType string
+---@field CompressionType integer
 ---@field Paddings string
 ---@field Name string
 WadItemHeader = {}

@@ -49,6 +49,13 @@ pak_create:
 		-i ignore/quake/PAK/ \
 		-o ignore/mypak.PAK
 
+pak_extract_me:
+	@./$(BIN) \
+		pak \
+		extract \
+		-i ignore/mypak.PAK \
+		-o ignore/mypak/
+
 ### ===============================================
 lmp_info:
 	@./$(BIN) \

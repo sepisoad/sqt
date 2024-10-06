@@ -44,10 +44,18 @@ local print_err = function(msg, ext)
   print_log(msg, ext, LEVEL.ERR)
 end
 
+---@param msg string
+---@param ext string?
+local print_fatal = function(msg, ext)
+  print_log(msg, ext, LEVEL.ERR) -- it's ok to use ERR level!
+  os.exit(1)
+end
+
 return {
   info = print_info,
   dbg = print_dbg,
   warn = print_warn,
   err = print_err,
+  fatal = print_fatal,
   VERBOSE = VERBOSE
 }
