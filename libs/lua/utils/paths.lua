@@ -42,7 +42,7 @@ end
 
 local list_files_in_dir = function(p)
   if not mfs.exists(p) then
-    return nil
+    return {}
   end
 
   return mfs.rfiles(p, true)

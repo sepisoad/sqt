@@ -205,29 +205,26 @@ local create_pak_header_from_pak_items_header = function(items_header)
 end
 
 --- -----------------------------------------------
----@param pak_header PakHeader
----@param pak_items_header PakItemsHeader
----@param input_dir_path string
----@param output_pak_path string
-local create_pak_file = function(pak_header, pak_items_header, input_dir_path, output_pak_path)
-	log.dbg(string.format("creating the actual .PAK file inti '%s'", output_pak_path))
+---@param header PakHeader
+---@param items_header PakItemsHeader
+---@param input_dir string
+---@param output_pak string
+local create_pak_file = function(header, items_header, input_dir, output_pak)
+	log.dbg(string.format("creating the actual .PAK file inti '%s'", output_pak))
 
-	local pak_f <close> = xio.open(output_pak_path, "wb")
-	if not pak_f then
-		log.fatal(string.format("failed to open '%s' for writing .PAK data", output_pak_path), err)
-	end
+	local pak_f <close> = xio.open(output_pak, "wb")
 
-	write.all(pak_f, pak_header.Code)
-	write.integer(pak_f, pak_header.Offset)
-	write.integer(pak_f, pak_header.Length)
+	write.all(pak_f, header.Code)
+	write.integer(pak_f, header.Offset)
+	write.integer(pak_f, header.Length)
 
-	for _, pak_item_header in ipairs(pak_items_header) do
+	for _, pak_item_header in ipairs(items_header) do
 		local data = paths.read_file_data(pak_item_header.Name)
 		write.all(pak_f, data)
 	end
 
-	for _, pak_item_header in ipairs(pak_items_header) do
-		local new_name = paths.trim_path(pak_item_header.Name, input_dir_path)
+	for _, pak_item_header in ipairs(items_header) do
+		local new_name = paths.trim_path(pak_item_header.Name, input_dir)
 		write.string(pak_f, new_name, 56)
 		write.integer(pak_f, pak_item_header.Position)
 		write.integer(pak_f, pak_item_header.Length)
