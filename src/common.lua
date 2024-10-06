@@ -38,6 +38,7 @@ local load_palette_data_from_file = function(path)
     }
     table.insert(colors, RGB)
   end
+
   return colors
 end
 
@@ -63,7 +64,34 @@ local load_lump_data_from_file = function(path)
   return header
 end
 
+--- -----------------------------------------------
+---@param path string
+---@return any
+local load_qoi_data = function(path)
+  log.dbg(string.format("openning the .qoi file from '%s'", path))
+
+  local qoi_f <close> = xio.open(path, "rb")
+  local qoi_data = read.all(qoi_f)
+  if not qoi_data then
+    log.fatal(string.format("failed to read the '%s' data", path))
+  end
+
+  return qoi_data
+end
+
+--- -----------------------------------------------
+---@param qoi_data any
+---@param qoi_file_path string
+local save_qoi_file = function(qoi_data, qoi_file_path)
+  log.dbg(string.format("saving qoi data into %s", qoi_file_path))
+
+  local qoi_f <close> = xio.open(qoi_file_path, "wb")
+  write.all(qoi_f, qoi_data)
+end
+
 return {
   load_palette_data_from_file = load_palette_data_from_file,
-  load_lump_data_from_file = load_lump_data_from_file
+  load_lump_data_from_file = load_lump_data_from_file,
+  load_qoi_data = load_qoi_data,
+  save_qoi_file = save_qoi_file,
 }

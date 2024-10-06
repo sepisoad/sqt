@@ -10,30 +10,15 @@ local read = bits.reader
 local write = bits.writer
 
 --- -----------------------------------------------
----@param p string
----@return any
-local load_qoi_data = function(p)
-  log.dbg(string.format("openning the .qoi file from '%s'", p))
-
-  local qoi_f <close> = xio.open(p, "rb")
-  local qoi_data = read.all(qoi_f)
-  if not qoi_data then
-    log.fatal(string.format("failed to read the '%s' data", p))
-  end
-
-  return qoi_data
-end
-
---- -----------------------------------------------
 ---@param lump_header LumpHeader
 ---@param palette_data PaletteData
 ---@return any
-local convert_lump_to_qoi = function(lump_file_path, palette_file_path, lump_header, palette_data)
+local convert_lump_to_qoi = function(lump_path, palette_path, lump_header, palette_data)
   log.dbg("converting lump image to qoi")
 
   local qoi_data, err = qoi.encode_indexed(lump_header.Data, palette_data, lump_header.Width, lump_header.Height)
   if err then
-    log.fatal(string.format("failed to decode '%s' using '%s' to qoi", lump_file_path, palette_file_path), err)
+    log.fatal(string.format("failed to decode '%s' using '%s' to qoi", lump_path, palette_path), err)
   end
   return qoi_data
 end
@@ -81,29 +66,6 @@ local create_toplevel_dir_for_output_file = function(file_path)
 end
 
 --- -----------------------------------------------
----@param qoi_data any
----@param qoi_file_path string
-local save_qoi_file = function(qoi_data, qoi_file_path)
-  log.dbg(string.format("saving qoi data into %s", qoi_file_path))
-
-  local qoi_f <close> = xio.open(qoi_file_path, "wb")
-  write.all(qoi_f, qoi_data)
-end
-
---- -----------------------------------------------
----@param lump_f file*
----@return LumpHeader
-local load_lump_file_header = function(lump_f)
-  log.dbg("loading .LMP file header")
-
-  return {
-    Width = read.integer(lump_f),
-    Height = read.integer(lump_f),
-    Data = read.all(lump_f)
-  }
-end
-
---- -----------------------------------------------
 ---@param lump_file_path string
 ---@param lump_header LumpHeader
 local print_lump_info = function(lump_file_path, lump_header)
@@ -140,7 +102,7 @@ local cmd_decode = function(lump_file_path, palette_file_path, qoi_file_path)
   local palette_data = sqt.load_palette_data_from_file(palette_file_path)
   local qoi_data = convert_lump_to_qoi(lump_file_path, palette_file_path, lump_header, palette_data)
   create_toplevel_dir_for_output_file(qoi_file_path)
-  save_qoi_file(qoi_data, qoi_file_path)
+  sqt.save_qoi_file(qoi_data, qoi_file_path)
 end
 
 --- ===============================================
@@ -152,7 +114,7 @@ end
 local cmd_encode = function(qoi_file_path, palette_file_path, lump_file_path)
   local palette_f <close> = xio.open(palette_file_path, "rb")
   local palette_data = sqt.load_palette_data_from_file(palette_file_path)
-  local qoi_data = load_qoi_data(qoi_file_path)
+  local qoi_data = sqt.load_qoi_data(qoi_file_path)
   local lump_header = convert_qoi_to_lump(qoi_data, palette_data, qoi_file_path)
   create_toplevel_dir_for_output_file(lump_file_path)
   save_lump_file(lump_header, lump_file_path)
