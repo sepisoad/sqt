@@ -13,7 +13,7 @@ local DOUBLE_SIZE <const> = LONG_SIZE
 ---@param f file*
 ---@param signed boolean|nil
 ---@return integer
-local read_byte = function (f, signed)
+local function read_byte (f, signed)
   local fmt = "=B"
   if signed then fmt = "=b" end
   return string.unpack(fmt, f:read(BYTE_SIZE))
@@ -23,7 +23,7 @@ end
 --- @param f file*
 --- @param signed boolean|nil
 --- @returns integer
-local read_short = function (f, signed)
+local function read_short (f, signed)
   local fmt = "=H"
   if signed then fmt = "=h" end
   return string.unpack(fmt, f:read(SHORT_SIZE))
@@ -33,7 +33,7 @@ end
 --- @param f file*
 --- @param signed boolean|nil
 --- @returns integer
-local read_integer = function (f, signed)
+local function read_integer (f, signed)
   local fmt = "=I"
   if signed then fmt = "=i" end
   return string.unpack(fmt, f:read(INTEGER_SIZE))
@@ -43,7 +43,7 @@ end
 --- @param f file*
 --- @param signed boolean|nil
 --- @returns integer
-local read_long = function (f, signed)
+local function read_long (f, signed)
   local fmt = "=L"
   if signed then fmt = "=l" end
   return string.unpack(fmt, f:read(LONG_SIZE))
@@ -53,7 +53,7 @@ end
 --- @param f file*
 --- @param double boolean|nil
 --- @returns number
-local read_float = function (f, double)
+local function read_float (f, double)
   if double then
     return string.unpack("=d", f:read(DOUBLE_SIZE))
   end
@@ -63,7 +63,7 @@ end
 --- read_size
 --- @param f file*
 --- @returns integer
-local read_size = function (f)
+local function read_size (f)
   local fmt = "=T"
   return string.unpack(fmt, f:read(INTEGER_SIZE))
 end
@@ -72,7 +72,7 @@ end
 --- @param f file*
 --- @param size integer
 --- @returns string
-local read_string = function (f, size)
+local function read_string (f, size)
   local fmt = "c" .. size
   return string.unpack(fmt, f:read(size))
 end
@@ -81,7 +81,7 @@ end
 --- @param f file*
 --- @param size integer
 --- @returns string
-local read_cstring = function (f, size)
+local function read_cstring (f, size)
   local fmt = "z"
   return string.unpack(fmt, f:read(size))
 end
@@ -89,14 +89,14 @@ end
 --- read_line
 --- @param f file*
 --- @returns string
-local read_line = function (f)
+local function read_line (f)
   return f:read("l")
 end
 
 --- read_all
 ---@param f file*
 ---@return string
-local read_all = function (f)
+local function read_all (f)
   return f:read("a")
 end
 
@@ -104,7 +104,7 @@ end
 ---@param f file*
 ---@param length integer
 ---@return any
-local read_bytes = function (f, length)
+local function read_bytes (f, length)
   return f:read(length)
 end
 
@@ -117,7 +117,7 @@ end
 ---@param value integer
 ---@param signed boolean|nil
 ---@return file*|nil
-local write_byte = function (f, value, signed)
+local function write_byte (f, value, signed)
   local fmt = "=B"
   if signed then fmt = "=b" end
   return f:write(string.pack(fmt, value))
@@ -128,7 +128,7 @@ end
 ---@param value integer
 ---@param signed boolean|nil
 ---@return file*|nil
-local write_short = function (f, value, signed)
+local function write_short (f, value, signed)
   local fmt = "=H"
   if signed then fmt = "=h" end
   return f:write(string.pack(fmt, value))
@@ -139,7 +139,7 @@ end
 ---@param value integer
 ---@param signed boolean|nil
 ---@return file*|nil
-local write_integer = function (f, value, signed)
+local function write_integer (f, value, signed)
   local fmt = "=I"
   if signed then fmt = "=i" end
   return f:write(string.pack(fmt, value))
@@ -150,7 +150,7 @@ end
 ---@param value integer
 ---@param signed boolean|nil
 ---@return file*|nil
-local write_long = function (f, value, signed)
+local function write_long (f, value, signed)
   local fmt = "=L"
   if signed then fmt = "=l" end
   return f:write(string.pack(fmt, value))
@@ -161,7 +161,7 @@ end
 ---@param value integer
 ---@param signed boolean|nil
 ---@return file*|nil
-local write_size = function (f, value, signed)
+local function write_size (f, value, signed)
   local fmt = "=T" -- always the same!
   return f:write(string.pack(fmt, value))
 end
@@ -171,7 +171,7 @@ end
 ---@param value number
 ---@param double boolean|nil
 ---@return file*|nil
-local write_float = function (f, value, double)
+local function write_float (f, value, double)
   if double then
     return f:write(string.pack("=d", value))
   end
@@ -183,7 +183,7 @@ end
 ---@param value string
 ---@param size integer
 ---@return file*|nil
-local write_string = function (f, value, size)
+local function write_string (f, value, size)
   local fmt = "c" .. size
   return f:write(string.pack(fmt, value))
 end
@@ -192,7 +192,7 @@ end
 ---@param f file*
 ---@param value any
 ---@return file*|nil
-local write_all = function (f, value)
+local function write_all (f, value)
   return f:write(value)
 end
 

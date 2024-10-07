@@ -1,9 +1,10 @@
-require('libs.lua.app.types')
 local log = require('libs.lua.log.log')
 local xio = require('libs.lua.utils.io')
 local bits = require('libs.lua.utils.bits')
 local paths = require('libs.lua.utils.paths')
 local container = require('libs.lua.utils.container')
+
+require('libs.lua.app.types')
 
 local read = bits.reader
 local write = bits.writer
@@ -11,7 +12,7 @@ local write = bits.writer
 --- -----------------------------------------------
 ---@param file file*
 ---@return PakHeader
-local load_pak_file_header = function(file)
+local function load_pak_file_header(file)
 	log.dbg("loading .PAK file header")
 
 	---@type PakHeader
@@ -26,7 +27,7 @@ end
 
 --- -----------------------------------------------
 ---@param header PakHeader
-local verify_pak_header = function(header)
+local function verify_pak_header(header)
 	log.dbg("verifying .PAK file header")
 
 	if header.Code ~= PakHeader._Magic or header.Length <= 0 or header.Offset <= 0 then
@@ -36,7 +37,7 @@ end
 
 --- -----------------------------------------------
 ---@param header PakHeader
-local calculate_pak_items_count = function(header)
+local function calculate_pak_items_count(header)
 	log.dbg("calculating the number of items in the .PAK")
 
 	return header.Length / PakItemHeader._Size
@@ -45,7 +46,7 @@ end
 --- -----------------------------------------------
 ---@param file file*
 ---@param header PakHeader
-local seek_to_pak_items_header = function(file, header)
+local function seek_to_pak_items_header(file, header)
 	log.dbg("seeking to the .PAK items header")
 
 	file:seek("set", header.Offset)
@@ -55,7 +56,7 @@ end
 ---@param file file*
 ---@param header PakItemHeader
 ---@return any
-local read_pak_item_data = function(file, header)
+local function read_pak_item_data(file, header)
 	log.dbg("reading .PAK item data")
 
 	file:seek("set", header.Position)
@@ -71,7 +72,7 @@ end
 ---@param file file*
 ---@param items_count integer
 ---@return PakItemHeader
-local load_pak_items_header = function(file, items_count)
+local function load_pak_items_header(file, items_count)
 	log.dbg("loading .PAK items header")
 
 	---@type PakItemsHeader
@@ -90,7 +91,7 @@ end
 
 --- -----------------------------------------------
 ---@param p string
-local create_extraction_toplevel_dir = function(p)
+local function create_extraction_toplevel_dir(p)
 	log.dbg("creating top level extraction directory")
 
 	return paths.create_dir_if_doesnt_exist(p)
@@ -98,7 +99,7 @@ end
 
 --- -----------------------------------------------
 ---@param p string
-local create_extraction_item_dir = function(p)
+local function create_extraction_item_dir(p)
 	log.dbg("creating .PAK item extraction directory")
 
 	return paths.create_dir_if_doesnt_exist(p)
@@ -108,7 +109,7 @@ end
 ---@param pak_file file*
 ---@param headers PakItemsHeader
 ---@param out_dir_path any
-local extract_items = function(pak_file, headers, out_dir_path)
+local function extract_items(pak_file, headers, out_dir_path)
 	log.dbg("extracting items from .PAK file")
 
 	local count = #headers
@@ -125,7 +126,7 @@ end
 
 --- -----------------------------------------------
 ---@param items PakItemsHeader
-local print_items_name = function(items)
+local function print_items_name(items)
 	log.dbg("listing items from .PAK file")
 
 	for _, item in pairs(items) do
@@ -137,7 +138,7 @@ end
 ---@param pak_path string
 ---@param items PakItemsHeader
 ---@param items_count integer
-local print_pak_info = function(pak_path, items, items_count)
+local function print_pak_info(pak_path, items, items_count)
 	log.dbg("printing .PAK file information")
 
 	local disk_size = paths.get_file_disk_size(pak_path)
@@ -158,7 +159,7 @@ end
 --- -----------------------------------------------
 ---@param files string[]
 ---@return PakItemsHeader
-local create_pak_items_header_from_files = function(files)
+local function create_pak_items_header_from_files(files)
 	log.dbg("creating .PAK items header info from the files in the source directory")
 
 	---@type PakItemsHeader
@@ -184,7 +185,7 @@ end
 --- -----------------------------------------------
 ---@param items_header PakItemsHeader
 ---@return PakHeader
-local create_pak_header_from_pak_items_header = function(items_header)
+local function create_pak_header_from_pak_items_header(items_header)
 	log.dbg(string.format("creating .PAK header info from its items header info"))
 
 	---@type PakHeader
@@ -206,7 +207,7 @@ end
 ---@param items_header PakItemsHeader
 ---@param input_dir string
 ---@param output_pak string
-local create_pak_file = function(header, items_header, input_dir, output_pak)
+local function create_pak_file(header, items_header, input_dir, output_pak)
 	log.dbg(string.format("creating the actual .PAK file inti '%s'", output_pak))
 
 	local pak_f <close> = xio.open(output_pak, "wb")
@@ -232,7 +233,7 @@ end
 --- info command
 --- ===============================================
 ---@param pak_file_path string
-local cmd_info = function(pak_file_path)
+local function cmd_info(pak_file_path)
 	local pak_f <close> = xio.open(pak_file_path, "rb")
 	local header = load_pak_file_header(pak_f)
 	verify_pak_header(header)
@@ -246,7 +247,7 @@ end
 --- list command
 --- ===============================================
 ---@param pak_file_path string
-local cmd_list = function(pak_file_path)
+local function cmd_list(pak_file_path)
 	local pak_f <close> = xio.open(pak_file_path, "rb")
 	local pak_header = load_pak_file_header(pak_f)
 	verify_pak_header(pak_header)
@@ -261,7 +262,7 @@ end
 --- ===============================================
 ---@param pak_file_path string
 ---@param out_dir_path string
-local cmd_extract = function(pak_file_path, out_dir_path)
+local function cmd_extract(pak_file_path, out_dir_path)
 	local pak_f <close> = xio.open(pak_file_path, "rb")
 	local pak_header = load_pak_file_header(pak_f)
 	verify_pak_header(pak_header)
@@ -277,7 +278,7 @@ end
 --- ===============================================
 ---@param input_dir_path string
 ---@param output_pak_path string
-local cmd_create = function(input_dir_path, output_pak_path)
+local function cmd_create(input_dir_path, output_pak_path)
 	local files = paths.list_files_in_dir(input_dir_path)
 	local pak_items_header = create_pak_items_header_from_files(files)
 	local pak_header = create_pak_header_from_pak_items_header(pak_items_header)

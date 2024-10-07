@@ -16,6 +16,7 @@ end)
 -- ==================================================================
 --  pak top command
 -- ==================================================================
+
 local pak = parser:command(
   "pak",
   "this command deals with the .PAK files"
@@ -74,6 +75,7 @@ end)
 -- ==================================================================
 --  lmp top command
 -- ==================================================================
+
 local lmp = parser:command(
   "lmp",
   "this command deals with the .LMP files"
@@ -122,6 +124,7 @@ end)
 -- ==================================================================
 --  wad top command
 -- ==================================================================
+
 local wad = parser:command(
   "wad",
   "this command deals with the .WAD files"
@@ -180,6 +183,7 @@ end)
 -- ==================================================================
 --  tex top command
 -- ==================================================================
+
 local tex = parser:command(
   "tex",
   "this command deals with the .TEX files"

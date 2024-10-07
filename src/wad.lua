@@ -1,8 +1,9 @@
-require('libs.lua.app.types')
 local log = require('libs.lua.log.log')
 local xio = require('libs.lua.utils.io')
 local bits = require('libs.lua.utils.bits')
 local paths = require('libs.lua.utils.paths')
+
+require('libs.lua.app.types')
 
 local read = bits.reader
 local write = bits.writer

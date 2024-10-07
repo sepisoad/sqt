@@ -10,7 +10,7 @@ local write = bits.writer
 --- -----------------------------------------------
 ---@param path string
 ---@return PaletteData
-local load_palette_data_from_file = function(path)
+local function load_palette_data_from_file (path)
   log.dbg("loading palette data")
 
   local palette_f <close> = xio.open(path, "rb")
@@ -42,7 +42,7 @@ end
 --- -----------------------------------------------
 ---@param path string
 ---@return any
-local load_qoi_data = function(path)
+local function load_qoi_data (path)
   log.dbg(string.format("openning the .qoi file from '%s'", path))
 
   local qoi_f <close> = xio.open(path, "rb")
@@ -57,7 +57,7 @@ end
 --- -----------------------------------------------
 ---@param qoi_data any
 ---@param qoi_file_path string
-local save_qoi_file = function(qoi_data, qoi_file_path)
+local function save_qoi_file (qoi_data, qoi_file_path)
   log.dbg(string.format("saving qoi data into %s", qoi_file_path))
 
   local qoi_f <close> = xio.open(qoi_file_path, "wb")

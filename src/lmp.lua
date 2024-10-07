@@ -1,4 +1,3 @@
-require('libs.lua.app.types')
 local log = require('libs.lua.log.log')
 local qoi = require('libs.lua.image.qoi')
 local xio = require('libs.lua.utils.io')
@@ -6,13 +5,15 @@ local bits = require('libs.lua.utils.bits')
 local paths = require('libs.lua.utils.paths')
 local sqt = require('src.common')
 
+require('libs.lua.app.types')
+
 local read = bits.reader
 local write = bits.writer
 
 --- -----------------------------------------------
 ---@param path string
 ---@return LumpHeader
-local load_lump_data_from_file = function(path)
+local function load_lump_data_from_file (path)
   log.dbg("loading .LMP file data")
 
   local lump_f <close> = xio.open(path, "rb")
@@ -36,7 +37,7 @@ end
 ---@param lump_header LumpHeader
 ---@param palette_data PaletteData
 ---@return any
-local convert_lump_to_qoi = function(lump_path, palette_path, lump_header, palette_data)
+local function convert_lump_to_qoi (lump_path, palette_path, lump_header, palette_data)
   log.dbg("converting lump image to qoi")
 
   local qoi_data, err = qoi.encode_indexed(lump_header.Data, palette_data, lump_header.Width, lump_header.Height)
@@ -51,7 +52,7 @@ end
 ---@param palette_data any
 ---@param qoi_path string
 ---@return LumpHeader
-local convert_qoi_to_lump = function(qoi_data, palette_data, qoi_path)
+local function convert_qoi_to_lump (qoi_data, palette_data, qoi_path)
   log.dbg("converting qoi image to lump")
 
   local data, width, height = qoi.decode_indexed(qoi_data, palette_data)
@@ -64,7 +65,7 @@ end
 --- -----------------------------------------------
 ---@param header LumpHeader
 ---@param path string
-local save_lump_file = function(header, path)
+local function save_lump_file (header, path)
   log.dbg(string.format("saving LMP data into %s", path))
 
   local lump_f <close> = xio.open(path, "wb")
@@ -79,7 +80,7 @@ end
 
 --- -----------------------------------------------
 ---@param file_path string
-local create_toplevel_dir_for_output_file = function(file_path)
+local function create_toplevel_dir_for_output_file (file_path)
   log.dbg(string.format("creating top level directory for path '%s'", file_path))
 
   local _, err = paths.create_dir_for_file_path(file_path)
@@ -91,7 +92,7 @@ end
 --- -----------------------------------------------
 ---@param lump_file_path string
 ---@param lump_header LumpHeader
-local print_lump_info = function(lump_file_path, lump_header)
+local function print_lump_info (lump_file_path, lump_header)
   log.dbg("printing .LMP file information")
 
   local disk_size = paths.get_file_disk_size(lump_file_path)
@@ -107,8 +108,9 @@ end
 --- ===============================================
 --- info command
 --- ===============================================
+
 ---@param lump_file_path string
-local cmd_info = function(lump_file_path)
+local function cmd_info (lump_file_path)
   local lump_header = load_lump_data_from_file(lump_file_path)
   print_lump_info(lump_file_path, lump_header)
 end
@@ -116,10 +118,11 @@ end
 --- ===============================================
 --- decode command
 --- ===============================================
+
 ---@param lump_file_path string
 ---@param palette_file_path string
 ---@param qoi_file_path string
-local cmd_decode = function(lump_file_path, palette_file_path, qoi_file_path)
+local function cmd_decode (lump_file_path, palette_file_path, qoi_file_path)
   local lump_header = load_lump_data_from_file(lump_file_path)
   local palette_data = sqt.load_palette_data_from_file(palette_file_path)
   local qoi_data = convert_lump_to_qoi(lump_file_path, palette_file_path, lump_header, palette_data)
@@ -130,10 +133,11 @@ end
 --- ===============================================
 --- encode command
 --- ===============================================
+
 ---@param lump_file_path string
 ---@param palette_file_path string
 ---@param qoi_file_path string
-local cmd_encode = function(qoi_file_path, palette_file_path, lump_file_path)
+local function cmd_encode (qoi_file_path, palette_file_path, lump_file_path)
   local palette_data = sqt.load_palette_data_from_file(palette_file_path)
   local qoi_data = sqt.load_qoi_data(qoi_file_path)
   local lump_header = convert_qoi_to_lump(qoi_data, palette_data, qoi_file_path)

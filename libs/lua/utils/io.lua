@@ -4,7 +4,7 @@
 ---@param mode string
 ---@param msg string|nil
 ---@return file*
-local open = function (path, mode, msg)
+local  function open (path, mode, msg)
   if msg == nil then
     msg = string.format("failed to open '%s'", path)
   end
