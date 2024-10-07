@@ -48,7 +48,7 @@ local function convert_lump_to_qoi (lump_path, palette_path, lump_header, palett
 end
 
 --- -----------------------------------------------
----@param qoi_data file*
+---@param qoi_data any
 ---@param palette_data any
 ---@param qoi_path string
 ---@return LumpHeader

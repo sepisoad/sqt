@@ -1,7 +1,7 @@
 local fs = require('lfs')
 local mfs = require('libs.lua.minifs.minifs')
 local log = require('libs.lua.log.log')
-
+local str = require('libs.lua.str.str')
 
 local function create_dir_if_doesnt_exist (p)
   if not mfs.exists(p) then
@@ -57,6 +57,13 @@ local function read_file_data (p)
   return mfs.read(p)
 end
 
+local function file_name(path)
+  local x = mfs.filename(path)
+  local parts = str.split(x,".")
+  if #parts <= 1 or #parts > 2 then return path end
+  return parts[1], parts[2]
+end
+
 return {
   create_dir_if_doesnt_exist = create_dir_if_doesnt_exist,
   create_dir_for_file_path = create_dir_for_file_path,
@@ -65,4 +72,5 @@ return {
   list_files_in_dir = list_files_in_dir,
   read_file_data = read_file_data,
   trim_path = trim_path,
+  file_name = file_name
 }

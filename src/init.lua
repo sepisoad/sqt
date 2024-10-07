@@ -226,7 +226,7 @@ tex_encode:action(function (args)
     print(tex_encode:get_help())
     os.exit(1)
   end
-  _tex.encode(args.input, args.output, args.palette)
+  _tex.encode(args.input, args.palette, args.output)
 end)
 
 parser:parse()

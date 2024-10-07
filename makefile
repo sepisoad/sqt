@@ -126,12 +126,22 @@ tex_decode:
 	@./$(BIN) \
 		tex \
 		decode \
-		-i ignore/WAD/gfx/arrow_m \
+		-i ignore/WAD/gfx/city2_1 \
 		-p ignore/WAD/gfx/palette \
-		-o ignore/GFX/WAD/arrow_m.qoi
+		-o ignore/GFX/WAD/city2_1.qoi
 
 tex_encode:
 	@./$(BIN) \
 		tex \
 		encode \
-		BRRRRRR
+		-i ignore/GFX/WAD/city2_1.qoi \
+		-p ignore/WAD/gfx/palette \
+		-o ignore/GFX/XWAD/city2_1
+
+tex_decode_me:
+	@./$(BIN) \
+		tex \
+		decode \
+		-i ignore/GFX/XWAD/city2_1 \
+		-p ignore/WAD/gfx/palette \
+		-o ignore/GFX/XWAD/city2_1.qoi

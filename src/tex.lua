@@ -28,17 +28,21 @@ local function convert_tex_to_qoi (tex_file_path, palette_file_path, tex_header,
 end
 
 --- -----------------------------------------------
----@param qoi_data file*
+---@param qoi_data any
 ---@param palette_data any
----@param qoi_file_path string
----@param tex_name string
+---@param qoi_path string
+---@param tex_name string|nil
 ---@return TexHeader
-local function convert_qoi_to_tex (qoi_data, palette_data, qoi_file_path, tex_name)
+local function convert_qoi_to_tex(qoi_data, palette_data, qoi_path, tex_name)
   log.dbg("converting qoi image to tex")
 
   local tex_data, tex_width, tex_height = qoi.decode_indexed(qoi_data, palette_data)
   if not tex_data then
-    log.fatal(string.format("failed to convert qoi data to tex data from '%s'", qoi_file_path))
+    log.fatal(string.format("failed to convert qoi data to tex data from '%s'", qoi_path))
+  end
+
+  if tex_name == nil then
+    tex_name, _ = paths.file_name(qoi_path)
   end
 
   ---@type TexHeader
@@ -103,30 +107,6 @@ local function load_tex_data_from_file (path)
 end
 
 --- -----------------------------------------------
----@param header TexHeader
----@param tex_file_path string
-local function verify_tex_header (header, tex_file_path)
-  log.dbg("verifying .TEX file header")
-
-  if header.Name == nil or
-     header.Name == "" or
-     header.Width <= 0 or
-     header.Height <= 0 or
-     header.Data == nil then
-    log.fatal("the '" .. tex_file_path .. "' file is not valid")
-  end
-end
-
---- -----------------------------------------------
----@param tex_file_path string
----@return integer
-local function get_tex_file_disk_size (tex_file_path)
-  log.dbg("calculating .TEX file disk size")
-
-  return paths.get_file_disk_size(tex_file_path)
-end
-
---- -----------------------------------------------
 ---@param tex_file_path string
 ---@param tex_header TexHeader
 local function print_tex_info (tex_file_path, tex_header)
@@ -175,7 +155,7 @@ end
 local function cmd_encode (qoi_file_path, palette_file_path, tex_file_path)
   local palette_data = sqt.load_palette_data_from_file(palette_file_path)
   local qoi_data = sqt.load_qoi_data(qoi_file_path)
-  local tex_header = convert_qoi_to_tex(qoi_data, palette_data, qoi_file_path, "TODO") --TODO:sepi
+  local tex_header = convert_qoi_to_tex(qoi_data, palette_data, qoi_file_path)
   create_toplevel_dir_for_output_file(tex_file_path)
   save_tex_file(tex_header, tex_file_path)
 end
