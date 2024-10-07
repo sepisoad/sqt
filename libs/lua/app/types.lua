@@ -34,14 +34,14 @@ WadHeader = {
 ---@field Position integer        (4 bytes)
 ---@field Size integer            (4 bytes)
 ---@field CompressedSize integer  (4 bytes)
----@field Type WadItemType        (1 bytes)
+---@field Type integer            (1 bytes)
 ---@field CompressionType integer (1 bytes)
 ---@field Paddings string         (2 bytes)
 ---@field Name string             (16 bytes)
 WadItemHeader = {
   _Type = 1,
   _CompressionType = 1,
-  _Paddings = 1,
+  _Paddings = 2,
   _Name = 16,
 }
 

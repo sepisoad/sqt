@@ -34,7 +34,7 @@ items marked as ❌ are NOT implemented YET.
 - ✅ `decode`: use this to decode a .LMP file into a .qoi image
 - ✅ `encode`: use this to encode a .qoi image into a .LMP file
 
-* ~this command automatically encodes a non-indexed PNG file into a lump file, converting its colors to the standard Quake palette using an approximation technique. No additional steps are required from the user, bellow is an example of the indexd version of the SQT qoi logo:~ this might not be true since dropping png in favour of qoi format
+* ~this command automatically encodes a non-indexed PNG file into a lump file, converting its colors to the standard Quake palette using an approximation technique. No additional steps are required from the user, bellow is an example of the indexd version of the SQT qoi logo:~ this feature is dropped (temporarily after dropping png support)
 
 ![logo](docs/sqt_idx.png)
 
@@ -45,8 +45,8 @@ items marked as ❌ are NOT implemented YET.
 - ❌ `create`: use this to create a .WAD file
 
 ## tex command
-- ❌ `info`: use this to get some details about a .TEX file
-- ❌ `decode`: use this to decode a .TEX file into a .qoi image
+- ✅ `info`: use this to get some details about a .TEX file
+- ✅ `decode`: use this to decode a .TEX file into a .qoi image
 - ❌ `encode`: use this to encode a .qoi image into a .TEX file
 
 

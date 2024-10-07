@@ -40,13 +40,13 @@ pak_extract:
 		pak \
 		extract \
 		-i /home/sepi/Projects/internet/games/quake/game/id1/pak0.pak \
-		-o ignore/quake/PAK
+		-o ignore/UNPAK
 
 pak_create:
 	@./$(BIN) \
 		pak \
 		create \
-		-i ignore/quake/PAK/ \
+		-i ignore/UNPAK/ \
 		-o ignore/mypak.pak
 
 pak_extract_me:
@@ -54,38 +54,38 @@ pak_extract_me:
 		pak \
 		extract \
 		-i ignore/mypak.pak \
-		-o ignore/mypak/
+		-o ignore/UNPAK_ME/
 
 ### ===============================================
 lmp_info:
 	@./$(BIN) \
 		lmp \
 		info \
-		-i ignore/quake/PAK/gfx/bigbox.lmp
+		-i ignore/UNPAK/gfx/weapons/ww_axe_1.lmp
 
 lmp_decode:
 	@./$(BIN) \
 		lmp \
 		decode \
-		-i ignore/quake/PAK/gfx/bigbox.lmp \
-		-p ignore/quake/PAK/gfx/palette.lmp \
-		-o ignore/LMP/gfx/bigbox.qoi
+		-i ignore/UNPAK/gfx/weapons/ww_axe_1.lmp \
+		-p ignore/UNPAK/gfx/palette.lmp \
+		-o ignore/UNLMP/ww_axe_1.qoi
 
 lmp_encode:
 	@./$(BIN) \
 		lmp \
 		encode \
-		-i ignore/LMP/gfx/bigbox.qoi \
-		-p ignore/quake/PAK/gfx/palette.lmp \
-		-o ignore/LMP/gfx/bigbox.lmp
+		-i ignore/UNLMP/ww_axe_1.qoi \
+		-p ignore/UNPAK/gfx/palette.lmp \
+		-o ignore/UNLMP/ww_axe_1.lmp
 
 lmp_decode_me:
 	@./$(BIN) \
 		lmp \
 		decode \
-		-i ignore/LMP/gfx/bigbox.lmp \
-		-p ignore/quake/PAK/gfx/palette.lmp \
-		-o ignore/LMP/gfx/bigbox-me.qoi
+		-i ignore/UNLMP/ww_axe_1.lmp \
+		-p ignore/UNPAK/gfx/palette.lmp \
+		-o ignore/UNLMP/ww_axe_1_me.qoi
 
 
 ### ===============================================
@@ -93,27 +93,27 @@ wad_info:
 	@./$(BIN) \
 		wad \
 		info \
-		-i ignore/quake/PAK/gfx/all.wad
+		-i ignore/UNPAK/gfx/all.wad
 
 wad_list:
 	@./$(BIN) \
 		wad \
 		list \
-		-i ignore/quake/PAK/gfx/all.wad
+		-i ignore/UNPAK/gfx/all.wad
 
 wad_extract:
 	@./$(BIN) \
 		wad \
 		extract \
-		-i ignore/quake/PAK/gfx/all.wad \
-		-o ignore/WAD/gfx
+		-i ignore/UNPAK/gfx/all.wad \
+		-o ignore/UNWAD/gfx/all
 
 wad_create:
 	@./$(BIN) \
 		wad \
 		create \
-		-i ignore/WAD/gfx \
-		-o ignore/WAD/gfx.wad
+		-i ignore/UNWAD/gfx/all \
+		-o all.wad
 
 ### ===============================================
 tex_info:

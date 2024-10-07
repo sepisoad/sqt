@@ -1,6 +1,6 @@
 local fs = {}
 local lfs = require("lfs")
-
+local pp = require("libs.lua.pprint.pprint")
 
 math.randomseed(os.time())
 local bool
@@ -131,9 +131,12 @@ fs.mkrdir = function(dir)
     end
   end
 
+
+
   for idx = #failed, 1, -1 do
     local ok, err = fs.mkdir(failed[idx])
-    if ok == nil and err ~= nil then
+    if err ~= nil and err ~= "File exists" then
+      pp(err)
       return ok, err
     end
   end

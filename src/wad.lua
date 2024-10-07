@@ -58,7 +58,7 @@ local load_wad_items_header = function(file, wad_header)
       Position = read.integer(file),
       Size = read.integer(file),
       CompressedSize = read.integer(file),
-      Type = read.string(file, WadItemHeader._Type),
+      Type = read.byte(file),
       CompressionType = read.byte(file),
       Paddings = read.bytes(file, WadItemHeader._Paddings),
       Name = read.cstring(file, WadItemHeader._Name),
@@ -74,7 +74,6 @@ end
 ---@param wit WadItemType
 ---@return string
 local wad_item_type_to_string = function(wit)
-  wit = string.byte(wit)
   if wit == WadItemType.None then
     return "None"
   elseif wit == WadItemType.Label then
@@ -114,10 +113,11 @@ local print_wad_info = function(wad_path, wad_header, items_header)
   local disk_size = get_wad_file_disk_size(wad_path)
   local mapping = {}
   for _, item in pairs(items_header) do
-    if mapping[item.Type] == nil then
-      mapping[item.Type] = 1
+    local itype = wad_item_type_to_string(item.Type)
+    if mapping[itype] == nil then
+      mapping[itype] = 1
     else
-      mapping[item.Type] = mapping[item.Type] + 1 or 1
+      mapping[itype] = mapping[itype] + 1
     end
   end
 
@@ -127,7 +127,7 @@ local print_wad_info = function(wad_path, wad_header, items_header)
   print(string.format("  ◉ Size on disk:    %d bytes", disk_size))
   print("--- Items count per category -----------------------------")
   for wit, count in pairs(mapping) do
-    print(string.format("  ◉ %8s: %d", wad_item_type_to_string(wit), count))
+    print(string.format("  ◉ %s: %d", wit, count))
   end
 end
 
@@ -218,6 +218,7 @@ end
 --- ===============================================
 --- info command
 --- ===============================================
+
 ---@param wad_file_path string
 local cmd_info = function(wad_file_path)
   local wad_f <close> = xio.open(wad_file_path, "rb")
@@ -231,6 +232,7 @@ end
 --- ===============================================
 --- list command
 --- ===============================================
+
 ---@param wad_file_path string
 local cmd_list = function(wad_file_path)
   local wad_f <close> = xio.open(wad_file_path, "rb")
@@ -244,6 +246,7 @@ end
 --- ===============================================
 --- extract command
 --- ===============================================
+
 ---@param wad_file_path string
 ---@param out_dir_path string
 local cmd_extract = function(wad_file_path, out_dir_path)
@@ -259,6 +262,7 @@ end
 --- ===============================================
 --- create command
 --- ===============================================
+
 ---@param input_dir_path string
 ---@param output_wad_path string
 local cmd_create = function(input_dir_path, output_wad_path)
