@@ -4,69 +4,10 @@ local xio = require('libs.lua.utils.io')
 local qoi = require('libs.lua.image.qoi')
 local bits = require('libs.lua.utils.bits')
 local paths = require('libs.lua.utils.paths')
+local sqt = require('src.common')
 
 local read = bits.reader
 local write = bits.writer
-
-
---- -----------------------------------------------
----@param p string
----@return any
-local load_qoi_data = function(p)
-  log.dbg(string.format("openning the .qoi file from '%s'", p))
-
-  local qoi_f <close> = xio.open(p, "rb")
-  local qoi_data =  read.all(qoi_f)
-  if not qoi_data then
-    log.fatal(string.format("failed to read the '%s' data", p))
-  end
-
-  return qoi_data
-end
-
---- -----------------------------------------------
----@param palette_f file*
-local get_palette_size = function(palette_f)
-  log.dbg("calclulating palette size")
-
-  local plt_fsize = palette_f:seek("end", 0)
-  palette_f:seek("set", 0)
-  return plt_fsize
-end
-
---- -----------------------------------------------
----@param size integer
-local verify_palette = function(palette_file_path, size)
-  log.dbg(string.format("verifying palette file '%s'", palette_file_path))
-
-  if size <= 0 then
-    log.fatal("err: the palette '" .. palette_file_path .. "' file is not valid")
-  end
-end
-
---- -----------------------------------------------
----@param palette_f file*
----@param palette_size integer
----@return PaletteData
-local load_palette_data = function(palette_f, palette_size)
-  log.dbg("loading palette color data")
-
-  ---@type PaletteData
-  ---@diagnostic disable-next-line: missing-fields
-  local colors = {}
-  local num_of_colors = palette_size // RGBColor._Size
-
-  for _ = 1, num_of_colors do
-    ---@type RGBColor
-    local RGB = {
-      Red = read.byte(palette_f),
-      Green = read.byte(palette_f),
-      Blue = read.byte(palette_f)
-    }
-    table.insert(colors, RGB)
-  end
-  return colors
-end
 
 --- -----------------------------------------------
 ---@param tex_header TexHeader
@@ -134,23 +75,12 @@ local create_toplevel_dir_for_output_file = function(file_path)
 end
 
 --- -----------------------------------------------
----@param qoi_data any
----@param qoi_file_path string
-local save_qoi_file = function(qoi_data, qoi_file_path)
-  log.dbg(string.format("saving qoi data into %s", qoi_file_path))
-
-  local qoi_f <close> = xio.open(qoi_file_path, "wb")
-  local wsize = write.all(qoi_f, qoi_data)
-  if not wsize then
-    log.fatal(string.format("failed to write qoi data to '%s'", qoi_file_path))
-  end
-end
-
---- -----------------------------------------------
----@param tex_f file*
+---@param path string
 ---@return TexHeader
-local load_tex_file_header = function(tex_f)
+local load_tex_data_from_file = function(path)
   log.dbg("loading .TEX file header")
+
+  local tex_f <close> = xio.open(path, "rb")
 
   ---@type TexHeader
   local header = {
@@ -159,6 +89,15 @@ local load_tex_file_header = function(tex_f)
     Height = read.integer(tex_f),
     Data = read.all(tex_f)
   }
+
+  if header.Name == nil or
+     header.Name == "" or
+     header.Width <= 0 or
+     header.Height <= 0 or
+     header.Data == nil then
+    log.fatal("the '" .. path .. "' file is not valid")
+  end
+
   return header
 end
 
@@ -192,7 +131,7 @@ end
 local print_tex_info = function(tex_file_path, tex_header)
   log.dbg("printing .TEX file information")
 
-  local disk_size = get_tex_file_disk_size(tex_file_path)
+  local disk_size = paths.get_file_disk_size(tex_file_path)
 
   print("--- Information ------------------------------------------")
   print(string.format("  ◉ Path:               %s", tex_file_path))
@@ -208,11 +147,8 @@ end
 --- ===============================================
 ---@param tex_file_path string
 local cmd_info = function(tex_file_path)
-  local tex_f = xio.open(tex_file_path, "rb")
-  local tex_header = load_tex_file_header(tex_f)
-  verify_tex_header(tex_header, tex_file_path)
+  local tex_header = load_tex_data_from_file(tex_file_path)
   print_tex_info(tex_file_path, tex_header)
-  tex_f:close()
 end
 
 --- ===============================================
@@ -222,16 +158,11 @@ end
 ---@param palette_file_path string
 ---@param qoi_file_path string
 local cmd_decode = function(tex_file_path, palette_file_path, qoi_file_path)
-  local tex_f <close> = xio.open(tex_file_path, "rb")
-  local tex_header = load_tex_file_header(tex_f)
-  verify_tex_header(tex_header, tex_file_path)
-  local palette_f <close> = xio.open(palette_file_path, "rb")
-  local palette_size = get_palette_size(palette_f)
-  verify_palette(tex_file_path, palette_size)
-  local palette_data = load_palette_data(palette_f, palette_size)
+  local tex_header = load_tex_data_from_file(tex_file_path)
+  local palette_data = sqt.load_palette_data_from_file(palette_file_path)
   local qoi_data = convert_tex_to_qoi(tex_file_path, palette_file_path, tex_header, palette_data)
   create_toplevel_dir_for_output_file(qoi_file_path)
-  save_qoi_file(qoi_data, qoi_file_path)
+  sqt.save_qoi_file(qoi_data, qoi_file_path)
 end
 
 --- ===============================================
@@ -241,12 +172,8 @@ end
 ---@param palette_file_path string
 ---@param qoi_file_path string
 local cmd_encode = function(qoi_file_path, palette_file_path, tex_file_path)
-  local palette_f <close> = xio.open(palette_file_path, "rb")
-  local palette_size = get_palette_size(palette_f)
-  verify_palette(tex_file_path, palette_size)
-  local palette_data = load_palette_data(palette_f, palette_size)
-
-  local qoi_data = load_qoi_data(qoi_file_path)
+  local palette_data = sqt.load_palette_data_from_file(palette_file_path)
+  local qoi_data = sqt.load_qoi_data(qoi_file_path)
   local tex_header = convert_qoi_to_tex(qoi_data, palette_data, qoi_file_path, "TODO") --TODO:sepi
   verify_tex_header(tex_header, tex_file_path)
 

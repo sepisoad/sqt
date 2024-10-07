@@ -10,6 +10,29 @@ local read = bits.reader
 local write = bits.writer
 
 --- -----------------------------------------------
+---@param path string
+---@return LumpHeader
+local load_lump_data_from_file = function(path)
+  log.dbg("loading .LMP file data")
+
+  local lump_f <close> = xio.open(path, "rb")
+
+  ---@type LumpHeader
+  local header = {
+    Width = read.integer(lump_f),
+    Height = read.integer(lump_f),
+    Data = read.all(lump_f)
+  }
+
+  if header.Width <= 0 or header.Height <= 0 or header.Data == nil then
+    log.fatal(string.format("the lump file '%s' is not valid"), path)
+  end
+
+  return header
+end
+
+
+--- -----------------------------------------------
 ---@param lump_header LumpHeader
 ---@param palette_data PaletteData
 ---@return any
@@ -86,7 +109,7 @@ end
 --- ===============================================
 ---@param lump_file_path string
 local cmd_info = function(lump_file_path)
-  local lump_header = sqt.load_lump_data_from_file(lump_file_path)
+  local lump_header = load_lump_data_from_file(lump_file_path)
   print_lump_info(lump_file_path, lump_header)
 end
 
@@ -97,7 +120,7 @@ end
 ---@param palette_file_path string
 ---@param qoi_file_path string
 local cmd_decode = function(lump_file_path, palette_file_path, qoi_file_path)
-  local lump_header = sqt.load_lump_data_from_file(lump_file_path)
+  local lump_header = load_lump_data_from_file(lump_file_path)
   local palette_data = sqt.load_palette_data_from_file(palette_file_path)
   local qoi_data = convert_lump_to_qoi(lump_file_path, palette_file_path, lump_header, palette_data)
   create_toplevel_dir_for_output_file(qoi_file_path)
@@ -111,7 +134,6 @@ end
 ---@param palette_file_path string
 ---@param qoi_file_path string
 local cmd_encode = function(qoi_file_path, palette_file_path, lump_file_path)
-  local palette_f <close> = xio.open(palette_file_path, "rb")
   local palette_data = sqt.load_palette_data_from_file(palette_file_path)
   local qoi_data = sqt.load_qoi_data(qoi_file_path)
   local lump_header = convert_qoi_to_lump(qoi_data, palette_data, qoi_file_path)

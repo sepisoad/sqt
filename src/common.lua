@@ -1,10 +1,8 @@
 require('libs.lua.app.types')
 
 local log = require('libs.lua.log.log')
-local qoi = require('libs.lua.image.qoi')
 local xio = require('libs.lua.utils.io')
 local bits = require('libs.lua.utils.bits')
-local paths = require('libs.lua.utils.paths')
 
 local read = bits.reader
 local write = bits.writer
@@ -43,28 +41,6 @@ end
 
 --- -----------------------------------------------
 ---@param path string
----@return LumpHeader
-local load_lump_data_from_file = function(path)
-  log.dbg("loading .LMP file data")
-
-  local lump_f <close> = xio.open(path, "rb")
-
-  ---@type LumpHeader
-  local header = {
-    Width = read.integer(lump_f),
-    Height = read.integer(lump_f),
-    Data = read.all(lump_f)
-  }
-
-  if header.Width <= 0 or header.Height <= 0 or header.Data == nil then
-    log.fatal(string.format("the lump file '%s' is not valid"), path)
-  end
-
-  return header
-end
-
---- -----------------------------------------------
----@param path string
 ---@return any
 local load_qoi_data = function(path)
   log.dbg(string.format("openning the .qoi file from '%s'", path))
@@ -90,7 +66,6 @@ end
 
 return {
   load_palette_data_from_file = load_palette_data_from_file,
-  load_lump_data_from_file = load_lump_data_from_file,
   load_qoi_data = load_qoi_data,
   save_qoi_file = save_qoi_file,
 }
