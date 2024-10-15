@@ -11,7 +11,7 @@ local write = bits.writer
 --- -----------------------------------------------
 ---@param file file*
 ---@return WadHeader
-local load_wad_file_header = function(file)
+local function load_wad_file_header (file)
   log.dbg("loading .WAD file header")
 
   return {
@@ -23,7 +23,7 @@ end
 
 --- -----------------------------------------------
 ---@param header WadHeader
-local verify_wad_header = function(header)
+local function verify_wad_header (header)
   log.dbg("verifying .WAD file header")
 
   if header.Code ~= WadHeader._Magic or
@@ -36,7 +36,7 @@ end
 --- -----------------------------------------------
 ---@param file file*
 ---@param header WadHeader
-local seek_to_wad_items_header = function(file, header)
+local function seek_to_wad_items_header (file, header)
   log.dbg("seeking to the .WAD items header")
 
   file:seek("set", header.Offset)
@@ -46,7 +46,7 @@ end
 ---@param file file*
 ---@param wad_header WadHeader
 ---@return WadItemsHeader
-local load_wad_items_header = function(file, wad_header)
+local function load_wad_items_header (file, wad_header)
   log.dbg("loading .WAD items header")
 
   ---@type WadItemsHeader
@@ -73,7 +73,7 @@ end
 --- -----------------------------------------------
 ---@param wit WadItemType
 ---@return string
-local wad_item_type_to_string = function(wit)
+local function wad_item_type_to_string (wit)
   if wit == WadItemType.None then
     return "None"
   elseif wit == WadItemType.Label then
@@ -97,7 +97,7 @@ end
 --- -----------------------------------------------
 ---@param wad_path string
 ---@return integer
-local get_wad_file_disk_size = function(wad_path)
+local function get_wad_file_disk_size (wad_path)
   log.dbg("calculating .WAD file disk size")
 
   return paths.get_file_disk_size(wad_path)
@@ -107,7 +107,7 @@ end
 ---@param wad_path string
 ---@param wad_header WadHeader
 ---@param items_header WadItemsHeader
-local print_wad_info = function(wad_path, wad_header, items_header)
+local function print_wad_info (wad_path, wad_header, items_header)
   log.dbg("printing .WAD file information")
 
   local disk_size = get_wad_file_disk_size(wad_path)
@@ -133,7 +133,7 @@ end
 
 --- -----------------------------------------------
 ---@param items WadItemsHeader
-local print_items_name = function(items)
+local function print_items_name (items)
   log.dbg("listing items from .WAD file")
 
   for _, item in pairs(items) do
@@ -143,7 +143,7 @@ end
 
 --- -----------------------------------------------
 ---@param p string
-local create_extraction_toplevel_dir = function(p)
+local function create_extraction_toplevel_dir (p)
   log.dbg("creating top level extraction directory")
 
   return paths.create_dir_if_doesnt_exist(p)
@@ -153,7 +153,7 @@ end
 ---@param dir_name string
 ---@param item_name string
 ---@return string, string
-local get_extraction_file_path = function(dir_name, item_name)
+local function get_extraction_file_path (dir_name, item_name)
   log.dbg("constracting .WAD item extraction file path")
 
 
@@ -162,7 +162,7 @@ end
 
 --- -----------------------------------------------
 ---@param p string
-local create_extraction_item_dir = function(p)
+local function create_extraction_item_dir (p)
   log.dbg("creating .WAD item extraction directory")
 
   return paths.create_dir_if_doesnt_exist(p)
@@ -172,7 +172,7 @@ end
 ---@param file file*
 ---@param header WadItemHeader
 ---@return any
-local read_wad_item_data = function(file, header)
+local function read_wad_item_data (file, header)
   log.dbg("reading .WAD item data")
 
   file:seek("set", header.Position)
@@ -188,7 +188,7 @@ end
 ---@param file file*
 ---@param data any
 ---@param path string
-local save_item_data_to_file = function(file, data, path)
+local function save_item_data_to_file (file, data, path)
   log.dbg("saving .WAD data into file")
 
   if not write.all(file, data) then
@@ -200,7 +200,7 @@ end
 ---@param wad_file file*
 ---@param headers WadItemsHeader
 ---@param out_dir_path any
-local extract_items = function(wad_file, headers, out_dir_path)
+local function extract_items (wad_file, headers, out_dir_path)
   log.dbg("extracting items from .WAD file")
 
   local count = #headers
@@ -220,7 +220,7 @@ end
 --- ===============================================
 
 ---@param wad_file_path string
-local cmd_info = function(wad_file_path)
+local function cmd_info (wad_file_path)
   local wad_f <close> = xio.open(wad_file_path, "rb")
   local wad_header = load_wad_file_header(wad_f)
   verify_wad_header(wad_header)
@@ -234,7 +234,7 @@ end
 --- ===============================================
 
 ---@param wad_file_path string
-local cmd_list = function(wad_file_path)
+local function cmd_list (wad_file_path)
   local wad_f <close> = xio.open(wad_file_path, "rb")
   local wad_header = load_wad_file_header(wad_f)
   verify_wad_header(wad_header)
@@ -249,7 +249,7 @@ end
 
 ---@param wad_file_path string
 ---@param out_dir_path string
-local cmd_extract = function(wad_file_path, out_dir_path)
+local function cmd_extract (wad_file_path, out_dir_path)
   local wad_f <close> = xio.open(wad_file_path, "rb")
   local wad_header = load_wad_file_header(wad_f)
   verify_wad_header(wad_header)
@@ -265,7 +265,7 @@ end
 
 ---@param input_dir_path string
 ---@param output_wad_path string
-local cmd_create = function(input_dir_path, output_wad_path)
+local function cmd_create (input_dir_path, output_wad_path)
   -- TODO: implement this
   log.err("this command is intentially not implemented yet!")
   log.err("  probably there are many known types of files that are allowed to be packed int a WAD file")
