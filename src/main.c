@@ -1,14 +1,14 @@
+#include <lua5.4/lauxlib.h>
 #include <lua5.4/lua.h>
 #include <lua5.4/lualib.h>
-#include <lua5.4/lauxlib.h>
 
-#include "libs/c/lfs/lfs.h"
+#include "../libs/c/lfs/lfs.h"
 
 #define ENTRY_SCRIPT "./src/init.lua"
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
   // init lua vm
-  lua_State* L = luaL_newstate();
+  lua_State *L = luaL_newstate();
   luaL_openlibs(L);
 
   // load custom modules
