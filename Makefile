@@ -1,22 +1,47 @@
 CC = gcc
-DEBUG_FLAGS = -g -o0
-RELEASE_FLAGS = -O3
-CFLAGS = $(DEBUG_FLAGS)
-DEFS = -DSPNG_USE_MINIZ
-LIBS = -llua5.4
-INC = -I.
+MAKE = make
+
+LUAJIT = libs/c/luajit/src
+LFS = libs/c/lfs
+SQT = src
+
+LUAJIT_A = libluajit.a
+LFS_O = $(LFS)/lfs.o
+SQT_O = $(SQT)/main.o
+LIBLUAJIT = $(LUAJIT)/$(LUAJIT_A)
 BIN = sqt
 
-SRC = \
-	libs/c/lfs/lfs.c \
-	src/main.c
+DEBUG_FLAGS = -g -O0
+RELEASE_FLAGS = -O3
+CFLAGS = $(DEBUG_FLAGS)
+
+INC = -I.
+LIBSPATH = -L$(LUAJIT)
+LIBS = $(LIBSPATH) -l:$(LUAJIT_A) -lm
+
+all: bin
+
+luajit: $(LIBLUAJIT)
+	$(MAKE) -C $(LUAJIT)
+
+lfs: $(LFS_O)
+	$(CC) $(CFLAGS) -c $(LFS)/lfs.c -o $(LFS_O)
+
+sqt: $(SQTMAIN)
+	$(CC) $(CFLAGS) -c $(SQT)/main.c -o $(SQT_O)
+
+bin: luajit lfs sqt
+	$(CC) $(CFLAGS) $(LFS_O) $(SQT_O) -o $(BIN) $(INC) $(LIBS)
+
 
 clean:
 	rm -rf UNPAK
-	rm $(BIN)
-
-build:
-	$(CC) $(DEFS) $(CFLAGS) $(SRC) -o $(BIN) $(LIBS) $(INC) -lm
+	rm -f *.o
+	# rm -f $(LUAJIT)/*o
+	# rm -f $(LUAJIT)/host/*o
+	rm -f $(LFS)/*.o
+	rm -f $(SQT)/*.o
+	rm -f $(BIN)
 
 ### ===============================================
 ### DEBUG TARGETS

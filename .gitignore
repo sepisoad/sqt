@@ -6,3 +6,4 @@ sqt
 src/debug.lua
 .luarc.json
 *.run
+*.o

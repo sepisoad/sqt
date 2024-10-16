@@ -68,9 +68,14 @@
 
 #endif
 
-#include <lua5.4/lua.h>
-#include <lua5.4/lauxlib.h>
-#include <lua5.4/lualib.h>
+// #include <lua5.4/lua.h>
+// #include <lua5.4/lauxlib.h>
+// #include <lua5.4/lualib.h>
+
+#include "../luajit/src/lua.h"
+#include "../luajit/src/lauxlib.h"
+#include "../luajit/src/lualib.h"
+
 
 #include "lfs.h"
 
@@ -1150,7 +1155,7 @@ static int lfs_cp(lua_State *L)
         fclose(from);
         luaL_error(L, "can't open '%s'", to);
     }
-    
+
     size_t len;
     unsigned char buff[BUFSIZ];
     while ((len = fread(buff, sizeof(unsigned char), BUFSIZ, from)) > 0) {
@@ -1187,7 +1192,7 @@ static int define_module(lua_State *L) {
     return 1;
 }
 
-static int register_foo(lua_State *L) {    
+static int register_foo(lua_State *L) {
     lua_getglobal(L, "package");
     lua_getfield(L, -1, "preload");
     lua_pushcfunction(L, define_module);
