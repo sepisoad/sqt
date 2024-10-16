@@ -37,8 +37,8 @@ bin: luajit lfs sqt
 clean:
 	rm -rf UNPAK
 	rm -f *.o
-	# rm -f $(LUAJIT)/*o
-	# rm -f $(LUAJIT)/host/*o
+	rm -f $(LUAJIT)/*o
+	rm -f $(LUAJIT)/host/*o
 	rm -f $(LFS)/*.o
 	rm -f $(SQT)/*.o
 	rm -f $(BIN)
