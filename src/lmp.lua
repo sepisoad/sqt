@@ -16,7 +16,7 @@ local write = bits.writer
 local function load_lump_data_from_file (path)
   log.dbg("loading .LMP file data")
 
-  local lump_f <close> = xio.open(path, "rb")
+  local lump_f = xio.open(path, "rb")
 
   ---@type LumpHeader
   local header = {
@@ -29,6 +29,7 @@ local function load_lump_data_from_file (path)
     log.fatal(string.format("the lump file '%s' is not valid"), path)
   end
 
+  lump_f:close()
   return header
 end
 
@@ -68,7 +69,7 @@ end
 local function save_lump_file (header, path)
   log.dbg(string.format("saving LMP data into %s", path))
 
-  local lump_f <close> = xio.open(path, "wb")
+  local lump_f = xio.open(path, "wb")
   if not lump_f then
     log.fatal(string.format("failed to open '%s' for writing LMP data", path))
   end
@@ -76,6 +77,7 @@ local function save_lump_file (header, path)
   write.integer(lump_f, header.Width)
   write.integer(lump_f, header.Height)
   write.all(lump_f, header.Data)
+  lump_f:close()
 end
 
 --- -----------------------------------------------

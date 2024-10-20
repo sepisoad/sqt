@@ -62,10 +62,11 @@ end
 local function save_tex_file (tex_header, tex_file_path)
   log.dbg(string.format("saving LMP data into %s", tex_file_path))
 
-  local tex_f <close> = xio.open(tex_file_path, "wb")
+  local tex_f = xio.open(tex_file_path, "wb")
   tex_f:write(string.pack("=i", tex_header.Width))
   tex_f:write(string.pack("=i", tex_header.Height))
   tex_f:write(tex_header.Data)
+  tex_f:close()
 end
 
 --- -----------------------------------------------
@@ -85,7 +86,7 @@ end
 local function load_tex_data_from_file (path)
   log.dbg("loading .TEX file header")
 
-  local tex_f <close> = xio.open(path, "rb")
+  local tex_f = xio.open(path, "rb")
 
   ---@type TexHeader
   local header = {
@@ -103,6 +104,7 @@ local function load_tex_data_from_file (path)
     log.fatal("the '" .. path .. "' file is not valid")
   end
 
+  tex_f:close()
   return header
 end
 

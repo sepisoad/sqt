@@ -65,8 +65,7 @@ items marked as ❌ are NOT implemented YET.
 # Credtis:
 SQT relies on the following tools and open-source projects.
 
-- [miniz](https://github.com/richgel999/miniz)
-- [lua](https://www.lua.org/)
+- [luajit](https://luajit.org/)
 - [lua files ystem](http://lunarmodules.github.io/luafilesystem)
 - [lua argparse](https://github.com/mpeterv/argparse)
 - [lua minifs](https://github.com/tst2005/lua-minifs/)

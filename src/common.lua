@@ -13,7 +13,7 @@ local write = bits.writer
 local function load_palette_data_from_file (path)
   log.dbg("loading palette data")
 
-  local palette_f <close> = xio.open(path, "rb")
+  local palette_f = xio.open(path, "rb")
 
   local plt_fsize = palette_f:seek("end", 0)
   palette_f:seek("set", 0)
@@ -36,6 +36,8 @@ local function load_palette_data_from_file (path)
     table.insert(colors, RGB)
   end
 
+  palette_f:close()
+
   return colors
 end
 
@@ -45,12 +47,13 @@ end
 local function load_qoi_data (path)
   log.dbg(string.format("openning the .qoi file from '%s'", path))
 
-  local qoi_f <close> = xio.open(path, "rb")
+  local qoi_f = xio.open(path, "rb")
   local qoi_data = read.all(qoi_f)
   if not qoi_data then
     log.fatal(string.format("failed to read the '%s' data", path))
   end
 
+  qoi_f:close()
   return qoi_data
 end
 
@@ -60,8 +63,9 @@ end
 local function save_qoi_file (qoi_data, qoi_file_path)
   log.dbg(string.format("saving qoi data into %s", qoi_file_path))
 
-  local qoi_f <close> = xio.open(qoi_file_path, "wb")
+  local qoi_f = xio.open(qoi_file_path, "wb")
   write.all(qoi_f, qoi_data)
+  qoi_f:close()
 end
 
 return {

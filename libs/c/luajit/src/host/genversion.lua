@@ -35,10 +35,10 @@ local relver = file_read(FILE_RELVER_TXT):match("(%d+)")
 if relver then
   text = text:gsub("ROLLING", relver)
 else
-  io.stderr:write([[
-**** WARNING Cannot determine rolling release version from git log.
-**** WARNING The 'git' command must be available during the build.
-]])
+--   io.stderr:write([[
+-- **** WARNING Cannot determine rolling release version from git log.
+-- **** WARNING The 'git' command must be available during the build.
+-- ]])
   file_write_mod(FILE_RELVER_TXT, "ROLLING\n") -- Fallback for install target.
 end
 

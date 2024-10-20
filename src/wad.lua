@@ -240,9 +240,10 @@ local function extract_items(wad_file, headers, out_dir_path)
 
     local item_path, item_dir = get_extraction_file_path(out_dir_path, header.Name)
     create_extraction_item_dir(item_dir)
-    local item_file <close> = xio.open(item_path, "wb")
+    local item_file = xio.open(item_path, "wb")
     local item_data = read_wad_item_data(wad_file, header)
     save_item_data_to_file(item_file, header, item_data, item_path)
+    item_file:close()
   end
 end
 
@@ -252,12 +253,13 @@ end
 
 ---@param wad_file_path string
 local function cmd_info(wad_file_path)
-  local wad_f <close> = xio.open(wad_file_path, "rb")
+  local wad_f = xio.open(wad_file_path, "rb")
   local wad_header = load_wad_file_header(wad_f)
   verify_wad_header(wad_header)
   seek_to_wad_items_header(wad_f, wad_header)
   local items_header = load_wad_items_header(wad_f, wad_header)
   print_wad_info(wad_file_path, wad_header, items_header)
+  wad_f:close()
 end
 
 --- ===============================================
@@ -266,12 +268,13 @@ end
 
 ---@param wad_file_path string
 local function cmd_list(wad_file_path)
-  local wad_f <close> = xio.open(wad_file_path, "rb")
+  local wad_f = xio.open(wad_file_path, "rb")
   local wad_header = load_wad_file_header(wad_f)
   verify_wad_header(wad_header)
   seek_to_wad_items_header(wad_f, wad_header)
   local items_header = load_wad_items_header(wad_f, wad_header)
   print_items_name(items_header)
+  wad_f:close()
 end
 
 --- ===============================================
@@ -281,13 +284,14 @@ end
 ---@param wad_file_path string
 ---@param out_dir_path string
 local function cmd_extract(wad_file_path, out_dir_path)
-  local wad_f <close> = xio.open(wad_file_path, "rb")
+  local wad_f = xio.open(wad_file_path, "rb")
   local wad_header = load_wad_file_header(wad_f)
   verify_wad_header(wad_header)
   seek_to_wad_items_header(wad_f, wad_header)
   local items_header = load_wad_items_header(wad_f, wad_header)
   create_extraction_toplevel_dir(out_dir_path)
   extract_items(wad_f, items_header, out_dir_path)
+  wad_f:close()
 end
 
 --- ===============================================
