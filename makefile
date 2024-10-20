@@ -12,7 +12,7 @@ SRC = \
 	src/main.c
 
 clean:
-	rm -rf UNPAK
+	rm -rf ignore
 	rm $(BIN)
 
 build:

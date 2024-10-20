@@ -1,0 +1,5 @@
+# Todos
+- [ ] use default palette from data module if user did not defined a custom palette
+- [ ] move app top module from /libs/lua/app to the /src folder
+- [ ] use lua source code in the app as direct dependency instead of relying on a system lib
+- [ ] 
