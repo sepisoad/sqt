@@ -198,16 +198,26 @@ local function extract_items_as_lump(data, path, name)
 end
 
 --- -----------------------------------------------
---- TODO: in the future i need to do a file name lookup in this function and
---- check if the file name is 'CONCHARS' then perform the following actions
---- otherwise perform something elese
 ---@param data any
 ---@param path string
 ---@param name string
 local function extract_items_as_miptex(data, path, name)
   log.dbg("extracting .WAD item as miptex qoi file")
 
-  local width, height = 128, 128 -- TODO: this is a hardcoded value!
+
+  local width, height
+  if name == "CONCHARS" then
+    width = 128
+    height = 128
+  else
+    _, width, height, _, _, _, _, data = string.unpack("c16=I4=I4=I4=I4=I4=I4c" .. (#data - 88), data)
+  end
+
+  if width == nil or width <= 0 or height == nil or height <=0 then
+    log.fatal("the .WAD miptex is invalid")
+    return
+  end
+
   local qoi_data, err = qoi.encode_indexed(data, QUAKE_PALETTE, width, height)
   if err then
     log.fatal(string.format("failed to decode WAD item '%s' using default palette to qoi", name), err)
