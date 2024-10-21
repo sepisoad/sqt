@@ -99,6 +99,16 @@ PakItemHeader = {
 LumpHeader = {}
 
 --- ===============================================
+--- MipTex
+--- ===============================================
+---@class MipTex
+---@field Name string (16 bytes)
+---@field Width integer (4 bytes)
+---@field Height integer (4 bytes)
+---@field Offsets integer[] (16 bytes - 4 integers)
+MipTex = {}
+
+--- ===============================================
 --- RGBColor
 --- ===============================================
 

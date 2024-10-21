@@ -93,20 +93,20 @@ wad_info:
 	@./$(BIN) \
 		wad \
 		info \
-		-i ignore/UNPAK/gfx/all.wad
+		-i ignore/UNPAK/gfx.wad
 
 wad_list:
 	@./$(BIN) \
 		wad \
 		list \
-		-i ignore/UNPAK/gfx/all.wad
+		-i ignore/UNPAK/gfx.wad
 
 wad_extract:
 	@./$(BIN) \
 		wad \
 		extract \
-		-i ignore/UNPAK/gfx/all.wad \
-		-o ignore/UNWAD/gfx/all
+		-i ignore/UNPAK/gfx.wad \
+		-o ignore/UNWAD/gfx
 
 wad_create:
 	@./$(BIN) \

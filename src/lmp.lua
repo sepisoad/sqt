@@ -6,6 +6,7 @@ local paths = require('libs.lua.utils.paths')
 local sqt = require('src.common')
 
 require('libs.lua.app.types')
+require('libs.lua.app.data')
 
 local read = bits.reader
 local write = bits.writer

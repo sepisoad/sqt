@@ -1,7 +1,9 @@
 local log = require('libs.lua.log.log')
+local qoi = require('libs.lua.image.qoi')
 local xio = require('libs.lua.utils.io')
 local bits = require('libs.lua.utils.bits')
 local paths = require('libs.lua.utils.paths')
+local sqt = require('src.common')
 
 require('libs.lua.app.types')
 
@@ -11,7 +13,7 @@ local write = bits.writer
 --- -----------------------------------------------
 ---@param file file*
 ---@return WadHeader
-local function load_wad_file_header (file)
+local function load_wad_file_header(file)
   log.dbg("loading .WAD file header")
 
   return {
@@ -23,7 +25,7 @@ end
 
 --- -----------------------------------------------
 ---@param header WadHeader
-local function verify_wad_header (header)
+local function verify_wad_header(header)
   log.dbg("verifying .WAD file header")
 
   if header.Code ~= WadHeader._Magic or
@@ -36,7 +38,7 @@ end
 --- -----------------------------------------------
 ---@param file file*
 ---@param header WadHeader
-local function seek_to_wad_items_header (file, header)
+local function seek_to_wad_items_header(file, header)
   log.dbg("seeking to the .WAD items header")
 
   file:seek("set", header.Offset)
@@ -46,7 +48,7 @@ end
 ---@param file file*
 ---@param wad_header WadHeader
 ---@return WadItemsHeader
-local function load_wad_items_header (file, wad_header)
+local function load_wad_items_header(file, wad_header)
   log.dbg("loading .WAD items header")
 
   ---@type WadItemsHeader
@@ -73,7 +75,7 @@ end
 --- -----------------------------------------------
 ---@param wit WadItemType
 ---@return string
-local function wad_item_type_to_string (wit)
+local function wad_item_type_to_string(wit)
   if wit == WadItemType.None then
     return "None"
   elseif wit == WadItemType.Label then
@@ -97,7 +99,7 @@ end
 --- -----------------------------------------------
 ---@param wad_path string
 ---@return integer
-local function get_wad_file_disk_size (wad_path)
+local function get_wad_file_disk_size(wad_path)
   log.dbg("calculating .WAD file disk size")
 
   return paths.get_file_disk_size(wad_path)
@@ -107,7 +109,7 @@ end
 ---@param wad_path string
 ---@param wad_header WadHeader
 ---@param items_header WadItemsHeader
-local function print_wad_info (wad_path, wad_header, items_header)
+local function print_wad_info(wad_path, wad_header, items_header)
   log.dbg("printing .WAD file information")
 
   local disk_size = get_wad_file_disk_size(wad_path)
@@ -133,17 +135,17 @@ end
 
 --- -----------------------------------------------
 ---@param items WadItemsHeader
-local function print_items_name (items)
+local function print_items_name(items)
   log.dbg("listing items from .WAD file")
 
   for _, item in pairs(items) do
-    print(string.format("%s",item.Name))
+    print(string.format("%s", item.Name))
   end
 end
 
 --- -----------------------------------------------
 ---@param p string
-local function create_extraction_toplevel_dir (p)
+local function create_extraction_toplevel_dir(p)
   log.dbg("creating top level extraction directory")
 
   return paths.create_dir_if_doesnt_exist(p)
@@ -153,7 +155,7 @@ end
 ---@param dir_name string
 ---@param item_name string
 ---@return string, string
-local function get_extraction_file_path (dir_name, item_name)
+local function get_extraction_file_path(dir_name, item_name)
   log.dbg("constracting .WAD item extraction file path")
 
 
@@ -162,56 +164,80 @@ end
 
 --- -----------------------------------------------
 ---@param p string
-local function create_extraction_item_dir (p)
+local function create_extraction_item_dir(p)
   log.dbg("creating .WAD item extraction directory")
 
   return paths.create_dir_if_doesnt_exist(p)
 end
 
 --- -----------------------------------------------
----@param file file*
----@param header WadItemHeader
----@return any
-local function read_wad_item_data (file, header)
-  log.dbg("reading .WAD item data")
-
-  file:seek("set", header.Position)
-  local data = read.bytes(file, header.Size)
-  if not data then
-    log.fatal(string.format("failed to read data from input .WAD item '%s'", header.Name))
-  end
-
-  return data
-end
-
---- -----------------------------------------------
----@param file file*
 ---@param data any
 ---@param path string
-local function save_item_data_to_file (file, data, path)
+local function extract_items_as_raw(data, path)
   log.dbg("saving .WAD data into file")
 
+  local file <close> = xio.open(path, "wd")
   if not write.all(file, data) then
     log.fatal(string.format("failed to write .WAD item data to output file '%s'", path))
   end
 end
 
 --- -----------------------------------------------
+---@param data any
+---@param path string
+---@param name string
+local function extract_items_as_lump(data, path, name)
+  log.dbg("extracting .WAD item as lump qoi file")
+
+  local width, height, image_data = string.unpack("=I4=I4c" .. (#data - 8), data)
+  local qoi_data, err = qoi.encode_indexed(image_data, QUAKE_PALETTE, width, height)
+  if err then
+    log.fatal(string.format("failed to decode WAD item '%s' using default palette to qoi", name), err)
+  end
+  sqt.save_qoi_file(qoi_data, path .. '.qoi')
+end
+
+--- -----------------------------------------------
+---@param data any
+---@param path string
+---@param name string
+local function extract_items_as_miptex(data, path, name)
+  log.dbg("extracting .WAD item as miptex qoi file")
+
+  local width, height = 128, 128 -- TODO: this is a hardcoded value!
+  local qoi_data, err = qoi.encode_indexed(data, QUAKE_PALETTE, width, height)
+  if err then
+    log.fatal(string.format("failed to decode WAD item '%s' using default palette to qoi", name), err)
+  end
+  sqt.save_qoi_file(qoi_data, path .. '.qoi')
+end
+
+--- -----------------------------------------------
 ---@param wad_file file*
 ---@param headers WadItemsHeader
 ---@param out_dir_path any
-local function extract_items (wad_file, headers, out_dir_path)
+local function extract_items(wad_file, headers, out_dir_path)
   log.dbg("extracting items from .WAD file")
 
   local count = #headers
   for progress, header in pairs(headers) do
     print(string.format("%d/%d extracting '%s", progress, count, header.Name))
 
+    wad_file:seek("set", header.Position)
+
     local item_path, item_dir = get_extraction_file_path(out_dir_path, header.Name)
+    local item_data = read.bytes(wad_file, header.Size)
+
     create_extraction_item_dir(item_dir)
-    local item_file <close> = xio.open(item_path, "wb")
-    local item_data = read_wad_item_data(wad_file, header)
-    save_item_data_to_file(item_file, item_data, item_path)
+
+
+    if header.Type == WadItemType.QPic or header.Type == WadItemType.Lumpy then
+      extract_items_as_lump(item_data, item_path, header.Name)
+    elseif header.Type == WadItemType.MipTex then
+      extract_items_as_miptex(item_data, item_path, header.Name)
+    else
+      extract_items_as_raw(item_data, item_path)
+    end
   end
 end
 
@@ -220,7 +246,7 @@ end
 --- ===============================================
 
 ---@param wad_file_path string
-local function cmd_info (wad_file_path)
+local function cmd_info(wad_file_path)
   local wad_f <close> = xio.open(wad_file_path, "rb")
   local wad_header = load_wad_file_header(wad_f)
   verify_wad_header(wad_header)
@@ -234,7 +260,7 @@ end
 --- ===============================================
 
 ---@param wad_file_path string
-local function cmd_list (wad_file_path)
+local function cmd_list(wad_file_path)
   local wad_f <close> = xio.open(wad_file_path, "rb")
   local wad_header = load_wad_file_header(wad_f)
   verify_wad_header(wad_header)
@@ -249,7 +275,7 @@ end
 
 ---@param wad_file_path string
 ---@param out_dir_path string
-local function cmd_extract (wad_file_path, out_dir_path)
+local function cmd_extract(wad_file_path, out_dir_path)
   local wad_f <close> = xio.open(wad_file_path, "rb")
   local wad_header = load_wad_file_header(wad_f)
   verify_wad_header(wad_header)
@@ -265,7 +291,7 @@ end
 
 ---@param input_dir_path string
 ---@param output_wad_path string
-local function cmd_create (input_dir_path, output_wad_path)
+local function cmd_create(input_dir_path, output_wad_path)
   -- TODO: implement this
   log.err("this command is intentially not implemented yet!")
   log.err("  probably there are many known types of files that are allowed to be packed int a WAD file")
