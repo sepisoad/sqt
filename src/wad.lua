@@ -198,6 +198,9 @@ local function extract_items_as_lump(data, path, name)
 end
 
 --- -----------------------------------------------
+--- TODO: in the future i need to do a file name lookup in this function and
+--- check if the file name is 'CONCHARS' then perform the following actions
+--- otherwise perform something elese
 ---@param data any
 ---@param path string
 ---@param name string
