@@ -226,6 +226,7 @@ QUAKE_PALETTE = {
 	{ Red = 27,  Green = 27,  Blue = 47 },
 	{ Red = 19,  Green = 19,  Blue = 31 },
 	{ Red = 11,  Green = 11,  Blue = 15 },
+-- full bright colors
 	{ Red = 43,  Green = 0,   Blue = 0 },
 	{ Red = 59,  Green = 0,   Blue = 0 },
 	{ Red = 75,  Green = 7,   Blue = 0 },

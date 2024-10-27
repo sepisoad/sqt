@@ -1,5 +1,8 @@
 # SEPI'S QUAKE TOOLS (SQT)
 
+
+❌❌❌ DROPPED QOI, this README is outdated! ❌❌❌
+
 ![logo](docs/sqt.png)
 
 SQT is a set of commands to work with quake 1 files.
@@ -65,7 +68,7 @@ items marked as ❌ are NOT implemented YET.
 # Credtis:
 SQT relies on the following tools and open-source projects.
 
-- [miniz](https://github.com/richgel999/miniz)
+- [stb] https://github.com/nothings/stb
 - [lua](https://www.lua.org/)
 - [lua files ystem](http://lunarmodules.github.io/luafilesystem)
 - [lua argparse](https://github.com/mpeterv/argparse)

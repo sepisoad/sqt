@@ -9,6 +9,7 @@ BIN = sqt
 
 SRC = \
 	libs/c/lfs/lfs.c \
+	libs/c/stb/img.c \
 	src/main.c
 
 clean:

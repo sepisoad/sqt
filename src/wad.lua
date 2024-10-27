@@ -1,12 +1,11 @@
+require('libs.lua.app.types')
 local log = require('libs.lua.log.log')
-local qoi = require('libs.lua.image.qoi')
 local xio = require('libs.lua.utils.io')
 local bits = require('libs.lua.utils.bits')
 local paths = require('libs.lua.utils.paths')
 local sqt = require('src.common')
 
-require('libs.lua.app.types')
-
+--- -----------------------------------------------
 local read = bits.reader
 local write = bits.writer
 
@@ -47,12 +46,16 @@ end
 --- -----------------------------------------------
 ---@param file file*
 ---@param wad_header WadHeader
----@return WadItemsHeader
+---@return WadItemsHeader, PaletteData|nil
 local function load_wad_items_header(file, wad_header)
   log.dbg("loading .WAD items header")
 
   ---@type WadItemsHeader
   local items = {}
+  ---@type WadItemHeader|nil
+  local palette_item = nil
+  ---@type PaletteData|nil
+  local palette = nil
 
   for index = 1, wad_header.ItemsCount do
     ---@type WadItemHeader
@@ -66,10 +69,18 @@ local function load_wad_items_header(file, wad_header)
       Name = read.cstring(file, WadItemHeader._Name),
     }
 
-    items[index] = item
+    if item.Name == "palette" then
+      palette_item = item
+    else
+      items[index] = item
+    end
   end
 
-  return items
+  if palette_item ~= nil then
+    palette = sqt.load_palette_data_from_file(file, palette_item.Position, palette_item.Size)
+  end
+
+  return items, palette
 end
 
 --- -----------------------------------------------
@@ -184,52 +195,54 @@ end
 
 --- -----------------------------------------------
 ---@param data any
+---@param palette PaletteData|nil
 ---@param path string
 ---@param name string
-local function extract_items_as_lump(data, path, name)
-  log.dbg("extracting .WAD item as lump qoi file")
+local function extract_items_as_lump(data, palette, path, name)
+  log.dbg("extracting .WAD item as lump png file")
+
+  if palette == nil then
+    palette = QUAKE_PALETTE
+  end
 
   local width, height, image_data = string.unpack("=I4=I4c" .. (#data - 8), data)
-  local qoi_data, err = qoi.encode_indexed(image_data, QUAKE_PALETTE, width, height)
-  if err then
-    log.fatal(string.format("failed to decode WAD item '%s' using default palette to qoi", name), err)
-  end
-  sqt.save_qoi_file(qoi_data, path .. '.qoi')
+  sqt.save_png_file(data, palette, width, height, path .. '.png')
 end
 
 --- -----------------------------------------------
 ---@param data any
+---@param palette PaletteData|nil
 ---@param path string
 ---@param name string
-local function extract_items_as_miptex(data, path, name)
-  log.dbg("extracting .WAD item as miptex qoi file")
+local function extract_items_as_miptex(data, palette, path, name)
+  log.dbg("extracting .WAD item as miptex png file")
 
+  if palette == nil then
+    palette = QUAKE_PALETTE
+  end
 
-  local width, height
+  local width, height, _name
   if name == "CONCHARS" then
     width = 128
     height = 128
   else
-    _, width, height, _, _, _, _, data = string.unpack("c16=I4=I4=I4=I4=I4=I4c" .. (#data - 88), data)
+    _name, width, height, _, _, _, _, data = string.unpack("c16=I4=I4=I4=I4=I4=I4c" .. (#data - 88), data)
   end
 
-  if width == nil or width <= 0 or height == nil or height <=0 then
+  if width == nil or width <= 0 or height == nil or height <= 0 then
     log.fatal("the .WAD miptex is invalid")
     return
   end
 
-  local qoi_data, err = qoi.encode_indexed(data, QUAKE_PALETTE, width, height)
-  if err then
-    log.fatal(string.format("failed to decode WAD item '%s' using default palette to qoi", name), err)
-  end
-  sqt.save_qoi_file(qoi_data, path .. '.qoi')
+  sqt.save_png_file(data, palette, width, height, path .. '.png')
 end
 
 --- -----------------------------------------------
 ---@param wad_file file*
 ---@param headers WadItemsHeader
+---@param palette PaletteData
 ---@param out_dir_path any
-local function extract_items(wad_file, headers, out_dir_path)
+local function extract_items(wad_file, headers, palette, out_dir_path)
   log.dbg("extracting items from .WAD file")
 
   local count = #headers
@@ -243,11 +256,10 @@ local function extract_items(wad_file, headers, out_dir_path)
 
     create_extraction_item_dir(item_dir)
 
-
     if header.Type == WadItemType.QPic or header.Type == WadItemType.Lumpy then
-      extract_items_as_lump(item_data, item_path, header.Name)
+      extract_items_as_lump(item_data, palette, item_path, header.Name)
     elseif header.Type == WadItemType.MipTex then
-      extract_items_as_miptex(item_data, item_path, header.Name)
+      extract_items_as_miptex(item_data, palette, item_path, header.Name)
     else
       extract_items_as_raw(item_data, item_path)
     end
@@ -264,7 +276,7 @@ local function cmd_info(wad_file_path)
   local wad_header = load_wad_file_header(wad_f)
   verify_wad_header(wad_header)
   seek_to_wad_items_header(wad_f, wad_header)
-  local items_header = load_wad_items_header(wad_f, wad_header)
+  local items_header, palette = load_wad_items_header(wad_f, wad_header)
   print_wad_info(wad_file_path, wad_header, items_header)
 end
 
@@ -278,7 +290,7 @@ local function cmd_list(wad_file_path)
   local wad_header = load_wad_file_header(wad_f)
   verify_wad_header(wad_header)
   seek_to_wad_items_header(wad_f, wad_header)
-  local items_header = load_wad_items_header(wad_f, wad_header)
+  local items_header, palette = load_wad_items_header(wad_f, wad_header)
   print_items_name(items_header)
 end
 
@@ -293,9 +305,9 @@ local function cmd_extract(wad_file_path, out_dir_path)
   local wad_header = load_wad_file_header(wad_f)
   verify_wad_header(wad_header)
   seek_to_wad_items_header(wad_f, wad_header)
-  local items_header = load_wad_items_header(wad_f, wad_header)
+  local items_header, palette = load_wad_items_header(wad_f, wad_header)
   create_extraction_toplevel_dir(out_dir_path)
-  extract_items(wad_f, items_header, out_dir_path)
+  extract_items(wad_f, items_header, palette, out_dir_path)
 end
 
 --- ===============================================

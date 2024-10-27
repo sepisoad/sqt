@@ -2,4 +2,20 @@
 - [ ] use default palette from data module if user did not defined a custom palette
 - [ ] move app top module from /libs/lua/app to the /src folder
 - [ ] use lua source code in the app as direct dependency instead of relying on a system lib
-- [ ] 
+- [ ]
+
+
+
+
+/home/sepi/Projects/sepi/quake-tools/ignore/UNWAD/gfx_all
+/home/sepi/Projects/internet/games/quake/tools/qpakman/BUILD/WAD-ALL
+
+{
+  CompressedSize = 11940,
+  CompressionType = 0,
+  Name = 'dopefish',
+  Paddings = '\x00\x00',
+  Position = 252040,
+  Size = 11940,
+  Type = 68
+}

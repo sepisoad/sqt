@@ -1,5 +1,4 @@
 local log = require('libs.lua.log.log')
-local qoi = require('libs.lua.image.qoi')
 local xio = require('libs.lua.utils.io')
 local bits = require('libs.lua.utils.bits')
 local paths = require('libs.lua.utils.paths')
@@ -35,49 +34,15 @@ end
 
 
 --- -----------------------------------------------
----@param lump_header LumpHeader
----@param palette_data PaletteData
----@return any
-local function convert_lump_to_qoi (lump_path, palette_path, lump_header, palette_data)
-  log.dbg("converting lump image to qoi")
-
-  local qoi_data, err = qoi.encode_indexed(lump_header.Data, palette_data, lump_header.Width, lump_header.Height)
-  if err then
-    log.fatal(string.format("failed to decode '%s' using '%s' to qoi", lump_path, palette_path), err)
-  end
-  return qoi_data
-end
-
---- -----------------------------------------------
----@param qoi_data any
----@param palette_data any
----@param qoi_path string
----@return LumpHeader
-local function convert_qoi_to_lump (qoi_data, palette_data, qoi_path)
-  log.dbg("converting qoi image to lump")
-
-  local data, width, height = qoi.decode_indexed(qoi_data, palette_data)
-  if not data then
-    log.fatal(string.format("failed to convert qoi data to lump data from '%s'", qoi_path))
-  end
-  return { Width = width, Height = height, Data = data }
-end
-
---- -----------------------------------------------
 ---@param header LumpHeader
----@param path string
-local function save_lump_file (header, path)
-  log.dbg(string.format("saving LMP data into %s", path))
+---@param palette PaletteData
+---@return any
+local function save_png_file (lump_path, header, palette)
+  log.dbg("converting lump image to png")
 
-  local lump_f <close> = xio.open(path, "wb")
-  if not lump_f then
-    log.fatal(string.format("failed to open '%s' for writing LMP data", path))
-  end
-
-  write.integer(lump_f, header.Width)
-  write.integer(lump_f, header.Height)
-  write.all(lump_f, header.Data)
+  sqt.save_png_file(header.Data, palette, header.Width, header.Height, lump_path)
 end
+
 
 --- -----------------------------------------------
 ---@param file_path string
@@ -125,10 +90,9 @@ end
 ---@param qoi_file_path string
 local function cmd_decode (lump_file_path, palette_file_path, qoi_file_path)
   local lump_header = load_lump_data_from_file(lump_file_path)
-  local palette_data = sqt.load_palette_data_from_file(palette_file_path)
-  local qoi_data = convert_lump_to_qoi(lump_file_path, palette_file_path, lump_header, palette_data)
+  local palette_data = sqt.load_palette_data_from_path(palette_file_path)
   create_toplevel_dir_for_output_file(qoi_file_path)
-  sqt.save_qoi_file(qoi_data, qoi_file_path)
+  save_png_file(lump_file_path, lump_header, palette_data)
 end
 
 --- ===============================================
@@ -139,11 +103,12 @@ end
 ---@param palette_file_path string
 ---@param qoi_file_path string
 local function cmd_encode (qoi_file_path, palette_file_path, lump_file_path)
-  local palette_data = sqt.load_palette_data_from_file(palette_file_path)
-  local qoi_data = sqt.load_qoi_data(qoi_file_path)
-  local lump_header = convert_qoi_to_lump(qoi_data, palette_data, qoi_file_path)
-  create_toplevel_dir_for_output_file(lump_file_path)
-  save_lump_file(lump_header, lump_file_path)
+  -- local palette_data = sqt.load_palette_data_from_path(palette_file_path)
+  -- local qoi_data = sqt.load_qoi_data(qoi_file_path)
+  -- local lump_header = convert_qoi_to_lump(qoi_data, palette_data, qoi_file_path)
+  -- create_toplevel_dir_for_output_file(lump_file_path)
+  -- save_lump_file(lump_header, lump_file_path)
+  log.fatal("NEED TO UPDATE!")
 end
 
 --- ===============================================
