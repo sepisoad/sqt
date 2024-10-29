@@ -32,7 +32,9 @@
         "unordered_map": "c",
         "module.h": "c",
         "spng.h": "c",
-        "random": "c"
+        "random": "c",
+        "functional": "c",
+        "__locale": "c"
     },
     "C_Cpp.default.compilerPath": "/usr/bin/clang-14"
 }

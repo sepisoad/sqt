@@ -77,7 +77,7 @@ local function load_wad_items_header(file, wad_header)
   end
 
   if palette_item ~= nil then
-    palette = sqt.load_palette_data_from_file(file, palette_item.Position, palette_item.Size)
+    palette = sqt.load_palette(file, palette_item.Position, palette_item.Size)
   end
 
   return items, palette

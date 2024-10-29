@@ -70,13 +70,13 @@ lmp_decode:
 		decode \
 		-i ignore/UNPAK/gfx/weapons/ww_axe_1.lmp \
 		-p ignore/UNPAK/gfx/palette.lmp \
-		-o ignore/UNLMP/ww_axe_1.qoi
+		-o ignore/UNLMP/ww_axe_1.png
 
 lmp_encode:
 	@./$(BIN) \
 		lmp \
 		encode \
-		-i ignore/UNLMP/ww_axe_1.qoi \
+		-i ignore/UNLMP/ww_axe_1.png \
 		-p ignore/UNPAK/gfx/palette.lmp \
 		-o ignore/UNLMP/ww_axe_1.lmp
 
@@ -86,7 +86,7 @@ lmp_decode_me:
 		decode \
 		-i ignore/UNLMP/ww_axe_1.lmp \
 		-p ignore/UNPAK/gfx/palette.lmp \
-		-o ignore/UNLMP/ww_axe_1_me.qoi
+		-o ignore/UNLMP/ww_axe_1_me.png
 
 
 ### ===============================================

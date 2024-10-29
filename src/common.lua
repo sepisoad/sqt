@@ -4,17 +4,28 @@ local stb = require('stb')
 local log = require('libs.lua.log.log')
 local xio = require('libs.lua.utils.io')
 local bits = require('libs.lua.utils.bits')
+local paths = require('libs.lua.utils.paths')
 
 local read = bits.reader
 local write = bits.writer
+--- -----------------------------------------------
+---@param path string
+local function create_parent_dir(path)
+  log.dbg(string.format("creating top level directory for path '%s'", path))
+
+  local _, err = paths.create_dir_for_file_path(path)
+  if err ~= nil then
+    log.fatal(string.format("failed to create top level directory for file '%s'", path))
+  end
+end
 
 --- -----------------------------------------------
 ---@param palette_f file*
 ---@param position integer
 ---@param size integer
 ---@return PaletteData
-local function load_palette_data_from_file(palette_f, position, size)
-  log.dbg("loading palette data")
+local function load_palette_from_file(palette_f, position, size)
+  log.dbg("loading palette data from file")
 
   palette_f:seek("set", position)
 
@@ -38,8 +49,8 @@ end
 --- -----------------------------------------------
 ---@param path string
 ---@return PaletteData
-local function load_palette_data_from_path(path)
-  log.dbg("loading palette data")
+local function load_palette_from_path(path)
+  log.dbg("loading palette data from path")
 
   local palette_f <close> = xio.open(path, "rb")
 
@@ -68,28 +79,18 @@ local function load_palette_data_from_path(path)
 end
 
 --- -----------------------------------------------
----@param path string
----@return any
-local function load_qoi_data(path)
-  log.dbg(string.format("openning the .qoi file from '%s'", path))
-
-  local qoi_f <close> = xio.open(path, "rb")
-  local qoi_data = read.all(qoi_f)
-  if not qoi_data then
-    log.fatal(string.format("failed to read the '%s' data", path))
+---@param from string|file*
+---@param position integer|nil
+---@param size integer|nil
+---@return PaletteData
+local function load_palette(from, position, size)
+  if type(from) == 'string' then
+    return load_palette_from_path(from)
+  else
+    assert(position ~= nil)
+    assert(size ~= nil)
+    return load_palette_from_file(from, position, size)
   end
-
-  return qoi_data
-end
-
---- -----------------------------------------------
----@param qoi_data any
----@param qoi_file_path string
-local function save_qoi_file(qoi_data, qoi_file_path)
-  log.dbg(string.format("saving qoi data into %s", qoi_file_path))
-
-  local qoi_f <close> = xio.open(qoi_file_path, "wb")
-  write.all(qoi_f, qoi_data)
 end
 
 --- -----------------------------------------------
@@ -112,10 +113,27 @@ local function save_png_file(data, palette, width, height, path)
   end
 end
 
+--- -----------------------------------------------
+---@param path string
+---@return any | nil 
+local function load_png_data(path)
+  log.dbg(string.format("loading png data from %s", path))
+
+  local data, err = pcall(stb.decode_paletted_png, path)
+  if not data then
+    log.err(err)
+    return nil
+  end
+  
+  return data
+end
+
+--- -----------------------------------------------
+--- MODULE
+--- -----------------------------------------------
 return {
-  load_palette_data_from_file = load_palette_data_from_file,
-  load_palette_data_from_path = load_palette_data_from_path,
-  load_qoi_data = load_qoi_data,
-  save_qoi_file = save_qoi_file,
+  create_parent_dir = create_parent_dir,
+  load_palette = load_palette,
   save_png_file = save_png_file,
+  load_png_data = load_png_data,
 }

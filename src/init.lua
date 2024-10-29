@@ -94,10 +94,10 @@ end)
 
 -- ---------------------------------
 -- lmp -> decode sub command
-local lmp_decode = lmp:command("decode", "use this to decode a .LMP file into a .qoi image")
+local lmp_decode = lmp:command("decode", "use this to decode a .LMP file into a .png image")
 lmp_decode:option("-i --input", "set the .LMP file input path"):target("input"):args(1)
 lmp_decode:option("-p --palette", "set the input palette file path"):target("palette"):args(1)
-lmp_decode:option("-o --output", "set the output .qoi file path"):target("output"):args(1)
+lmp_decode:option("-o --output", "set the output .png file path"):target("output"):args(1)
 lmp_decode:action(function (args)
   if not args.input or not args.palette or not args.output then
     print(lmp_decode:get_help())
@@ -108,8 +108,8 @@ end)
 
 -- ---------------------------------
 -- lmp -> encode sub command
-local lmp_encode = lmp:command("encode", "use this to encode a .qoi image into a .LMP file")
-lmp_encode:option("-i --input", "set the input .qoi file path"):target("input"):args(1)
+local lmp_encode = lmp:command("encode", "use this to encode a .png image into a .LMP file")
+lmp_encode:option("-i --input", "set the input .png file path"):target("input"):args(1)
 lmp_encode:option("-p --palette", "set the input palette file path"):target("palette"):args(1)
 lmp_encode:option("-o --output", "set the output .LMP file path"):target("output"):args(1)
 lmp_encode:action(function (args)
