@@ -13,7 +13,7 @@ local write = bits.writer
 --- -----------------------------------------------
 ---@param path string
 ---@return LumpHeader
-local function load_lump (path)
+local function load_lump(path)
   log.dbg("loading .LMP file data")
 
   local lump_f <close> = xio.open(path, "rb")
@@ -26,16 +26,31 @@ local function load_lump (path)
   }
 
   if header.Width <= 0 or header.Height <= 0 or header.Data == nil then
-    log.fatal(string.format("the lump file '%s' is not valid"), path)
+    log.err(string.format("the lump file '%s' is not valid", path))
   end
 
   return header
 end
 
 --- -----------------------------------------------
+---@param path string
+---@param data table
+---@param width number
+---@param height number
+local function save_lump(path, data, width, height)
+  log.dbg("saving .LMP file data")
+
+  local lump_f <close> = xio.open(path, "wb")
+
+  write.integer(lump_f, width)
+  write.integer(lump_f, height)
+  write.all(lump_f, data)
+end
+
+--- -----------------------------------------------
 ---@param lump_file_path string
 ---@param lump_header LumpHeader
-local function print_lump_info (lump_file_path, lump_header)
+local function print_lump_info(lump_file_path, lump_header)
   log.dbg("printing .LMP file information")
 
   local disk_size = paths.get_file_disk_size(lump_file_path)
@@ -53,7 +68,7 @@ end
 --- ===============================================
 
 ---@param lump_path string
-local function cmd_info (lump_path)
+local function cmd_info(lump_path)
   local lump_header = load_lump(lump_path)
   print_lump_info(lump_path, lump_header)
 end
@@ -65,7 +80,7 @@ end
 ---@param lump_path string
 ---@param palette_file_path string
 ---@param png_path string
-local function cmd_decode (lump_path, palette_file_path, png_path)
+local function cmd_decode(lump_path, palette_file_path, png_path)
   local header = load_lump(lump_path)
   local palette = sqt.load_palette(palette_file_path)
   sqt.create_parent_dir(png_path)
@@ -79,13 +94,11 @@ end
 ---@param lump_path string
 ---@param palette_path string
 ---@param png_path string
-local function cmd_encode (png_path, palette_path, lump_path)
+local function cmd_encode(png_path, palette_path, lump_path)
   local palette_data = sqt.load_palette(palette_path)
-  local png_data = sqt.load_png_data(png_path)
-  local header = convert_png_to_lump(png_data, palette_data, png_path)  
   sqt.create_parent_dir(lump_path)
-  save_lump_file(header, lump_path)
-  log.fatal("NEED TO UPDATE!")
+  local data, width, height = sqt.load_png_file(png_path, palette_data)
+  save_lump(lump_path, data, width, height)
 end
 
 --- ===============================================

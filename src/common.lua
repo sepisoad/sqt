@@ -115,17 +115,18 @@ end
 
 --- -----------------------------------------------
 ---@param path string
----@return any | nil 
-local function load_png_data(path)
+---@param palette PaletteData
+---@return table, number, number 
+local function load_png_file(path, palette)
   log.dbg(string.format("loading png data from %s", path))
 
-  local data, err = pcall(stb.decode_paletted_png, path)
-  if not data then
-    log.err(err)
-    return nil
+  local ok, data, width, height = pcall(stb.decode_paletted_png, palette, path)
+  if not ok then
+    log.err(data)
+    return {}, 0, 0 -- TODO: wtf is wrong with this?
   end
-  
-  return data
+
+  return data, width, height
 end
 
 --- -----------------------------------------------
@@ -135,5 +136,5 @@ return {
   create_parent_dir = create_parent_dir,
   load_palette = load_palette,
   save_png_file = save_png_file,
-  load_png_data = load_png_data,
+  load_png_file = load_png_file,
 }

@@ -24,13 +24,13 @@ int main(int argc, char **argv) {
   lua_setglobal(L, "arg");
 
   // run the entry script
-  // if (luaL_dofile(L, ENTRY_SCRIPT) != LUA_OK) {
-  //   fprintf(stderr, "Error: %s\n", lua_tostring(L, -1));
-  //   lua_pop(L, 1);
-  // }
+  if (luaL_dofile(L, ENTRY_SCRIPT) != LUA_OK) {
+    fprintf(stderr, "Error: %s\n", lua_tostring(L, -1));
+    lua_pop(L, 1);
+  }
 
   // run the debug script
-  luaL_dofile(L, "src/debug.lua");
+  // luaL_dofile(L, "src/debug.lua");
 
   // clean up
   lua_close(L);

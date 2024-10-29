@@ -98,27 +98,29 @@ static ERRCODE c_decode_paletted_png(
   const RGB_t* palette,
   int palette_len,
   uint8_t** indices,
-  int* indices_len
+  int* indices_len,
+  int* width,
+  int* height
 ) {
   ERRCODE err = ERR_SUCCESS;
-  uint32_t width, height, comp;
+  uint32_t comp;
 
-  uint8_t* data = stbi_load(path, &width, &height, &comp, 0);
+  uint8_t* data = stbi_load(path, width, height, &comp, 0);
   if (data == NULL) {
     err = ERR_DECPLT_LDPNG;
     goto cleanup;
   }
 
-  if (width <= 0 || height <= 0 || comp != CHANNELS) {
+  if ((*width) <= 0 || (*height) <= 0 || comp != CHANNELS) {
     err = ERR_DECPLT_INVPNG;
     goto cleanup;
   }
 
-  *indices_len = width * height;
+  *indices_len = (*width) * (*height);
   *indices = malloc(sizeof(uint8_t) * (*indices_len));
 
   int index = 0, indices_idx = 0;
-  for (index = 0, indices_idx = 0; index < width * height * CHANNELS; index += 3, indices_idx++) {
+  for (index = 0, indices_idx = 0; index < (*width) * (*height) * CHANNELS; index += 3, indices_idx++) {
     uint8_t r = data[index];
     uint8_t g = data[index + 1];
     uint8_t b = data[index + 2];
@@ -202,7 +204,7 @@ static int l_encode_paletted_png(lua_State* L) {
       goto cleanup;
     }
 
-    uint8_t palette_index = luaL_checkinteger(L, -1) - 1; // from lua 1 index to c 0 index
+    uint8_t palette_index = luaL_checkinteger(L, -1); // from lua 1 index to c 0 index
     int img_index = pixel_index * 3;
     pixels[img_index] = palette[palette_index].R;
     pixels[img_index + 1] = palette[palette_index].G;
@@ -261,22 +263,20 @@ static int l_decode_paletted_png(lua_State* L) {
   const char* path = luaL_checkstring(L, 2);
 
   uint8_t* data = NULL;
-  int data_len = 0;
-  err = c_decode_paletted_png(path, palette, palette_len, &data, &data_len);
+  int data_len, width, height = 0;
+  err = c_decode_paletted_png(path, palette, palette_len, &data, &data_len, &width, &height);
   if (err > 0) { goto cleanup; }
 
-  lua_newtable(L);
-  for (int i = 0; i < data_len; i++) {
-    lua_pushinteger(L, data[i] + 1);
-    lua_rawseti(L, -2, i + 1);
-  }
+  lua_pushlstring(L, data, data_len);
+  lua_pushinteger(L, width);
+  lua_pushinteger(L, height);
 
 cleanup:
   if (palette) free(palette);
   if (data) free(data);
   if (err > 0) return luaL_error(L, errstr(err));
 
-  return 1;
+  return 3;
 }
 
 // ========================================================
