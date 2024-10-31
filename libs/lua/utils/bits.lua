@@ -22,7 +22,7 @@ end
 --- read_short
 --- @param f file*
 --- @param signed boolean|nil
---- @returns integer
+--- @return integer
 local function read_short (f, signed)
   local fmt = "=H"
   if signed then fmt = "=h" end
@@ -32,7 +32,7 @@ end
 --- read_integer
 --- @param f file*
 --- @param signed boolean|nil
---- @returns integer
+--- @return integer
 local function read_integer (f, signed)
   local fmt = "=I"
   if signed then fmt = "=i" end
@@ -42,7 +42,7 @@ end
 --- read_long
 --- @param f file*
 --- @param signed boolean|nil
---- @returns integer
+--- @return integer
 local function read_long (f, signed)
   local fmt = "=L"
   if signed then fmt = "=l" end
@@ -52,7 +52,7 @@ end
 --- read_float
 --- @param f file*
 --- @param double boolean|nil
---- @returns number
+--- @return number
 local function read_float (f, double)
   if double then
     return string.unpack("=d", f:read(DOUBLE_SIZE))
@@ -62,7 +62,7 @@ end
 
 --- read_size
 --- @param f file*
---- @returns integer
+--- @return integer
 local function read_size (f)
   local fmt = "=T"
   return string.unpack(fmt, f:read(INTEGER_SIZE))
@@ -71,7 +71,7 @@ end
 --- read_string
 --- @param f file*
 --- @param size integer
---- @returns string
+--- @return string
 local function read_string (f, size)
   local fmt = "c" .. size
   return string.unpack(fmt, f:read(size))
@@ -80,7 +80,7 @@ end
 --- read_cstring
 --- @param f file*
 --- @param size integer
---- @returns string
+--- @return string
 local function read_cstring (f, size)
   local fmt = "z"
   return string.unpack(fmt, f:read(size))
@@ -88,7 +88,7 @@ end
 
 --- read_line
 --- @param f file*
---- @returns string
+--- @return string
 local function read_line (f)
   return f:read("l")
 end
