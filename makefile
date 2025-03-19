@@ -3,8 +3,8 @@ DEBUG_FLAGS = -g -o0
 RELEASE_FLAGS = -O3
 CFLAGS = $(DEBUG_FLAGS)
 DEFS = -DSPNG_USE_MINIZ
-LIBS = -llua5.4
-INC = -I.
+LIBS = -L/Users/sepi/Downloads/lua-5.4.7 -llua
+INC = -I. -I/Users/sepi/Downloads/lua-5.4.7
 BIN = sqt
 
 SRC = \
@@ -28,19 +28,19 @@ pak_info:
 	@./$(BIN) \
 		pak \
 		info \
-		-i /home/sepi/Projects/internet/games/quake/game/id1/pak0.pak
+		-i /Users/sepi/Games/Quake1/id1/pak0.pak
 
 pak_list:
 	@./$(BIN) \
 		pak \
 		list \
-		-i /home/sepi/Projects/internet/games/quake/game/id1/pak0.pak
+		-i /Users/sepi/Games/Quake1/id1/pak0.pak
 
 pak_extract:
 	@./$(BIN) \
 		pak \
 		extract \
-		-i /home/sepi/Projects/internet/games/quake/game/id1/pak0.pak \
+		-i /Users/sepi/Games/Quake1/id1/pak0.pak \
 		-o ignore/UNPAK
 
 pak_create:
