@@ -20,8 +20,8 @@ project "mk_log"
   kind "StaticLib"
   language "C"
   location "BUILD"
-  targetdir "BUILD/"
-  objdir "BUILD/obj"
+  targetdir "BUILD"
+  objdir "BUILD"
   targetname "log"
   files {"deps/log.c"}
 
@@ -30,8 +30,8 @@ project "mk_args"
   kind "StaticLib"
   language "C"
   location "BUILD"
-  targetdir "BUILD/"
-  objdir "BUILD/obj"
+  targetdir "BUILD"
+  objdir "BUILD"
   targetname "args"
   files {"deps/optparse.c"}
   
@@ -40,8 +40,8 @@ project "mk_fs"
   kind "StaticLib"
   language "C"
   location "BUILD"
-  targetdir "BUILD/"
-  objdir "BUILD/obj"
+  targetdir "BUILD"
+  objdir "BUILD"
   targetname "fs"
   buildoptions { "-Wno-deprecated-declarations" }
   files {"deps/fs.c"}
@@ -51,8 +51,8 @@ project "mk_stb"
   kind "StaticLib"
   language "C"
   location "BUILD"
-  targetdir "BUILD/"
-  objdir "BUILD/obj"
+  targetdir "BUILD"
+  objdir "BUILD"
   targetname "stb"
   buildoptions { "-Wno-deprecated-declarations" }
   files {"deps/stb.c"}
@@ -62,10 +62,16 @@ project "mk_sqt"
   kind "ConsoleApp"
   language "C"
   location "BUILD"
-  targetdir "BUILD/"
-  objdir "BUILD/obj"
+  targetdir "BUILD"
+  objdir "BUILD"
   targetname "sqt"
-  files {"src/*.c", "src/qk/*.c"}
+  files {
+    "src/*.c",
+    "src/cmd/*.c",
+    "src/pak/*.c",
+    "src/lmp/*.c",
+    "src/wad/*.c"
+  }
   includedirs {"src", "deps"}
   links { "mk_log:static", "mk_args:static", "mk_fs:static", "mk_stb:static" }
   buildoptions { "-std=c2x" }

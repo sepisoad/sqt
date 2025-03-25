@@ -1,9 +1,9 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-#include "../deps/optparse.h"
+#include "../../deps/optparse.h"
 
-int cmd_lmp(char **argv) {
+bool cmd_lmp(char **argv) {
   int i, option;
   struct optparse options;
 
@@ -12,12 +12,12 @@ int cmd_lmp(char **argv) {
     switch (option) {
     case 'h':
       puts("usage: sleep [-h] [NUMBER]...");
-      return 0;
+      return true;
     case '?':
       printf("%s: %s\n", argv[0], options.errmsg);
-      return 1;
+      return false;
     }
   }
 
-  return 0;
+  return true;
 }

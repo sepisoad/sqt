@@ -1,8 +1,5 @@
 # directories
 ignore
+BUILD/
 
 # files
-sqt
-src/debug.lua
-.luarc.json
-*.run
