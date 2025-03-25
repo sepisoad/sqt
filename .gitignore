@@ -3,3 +3,4 @@ ignore
 BUILD/
 
 # files
+.DS_Store
