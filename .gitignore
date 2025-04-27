@@ -4,3 +4,4 @@ BUILD/
 
 # files
 .DS_Store
+.vscode

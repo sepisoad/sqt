@@ -3,38 +3,26 @@
 
 #include "fs.h"
 
-#include <assert.h>
 #include <errno.h>
+
+/* BEG fs_common_macros.c */
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 
-#if defined(_WIN32)
-#include <windows.h> /* <-- Just can't get away from this darn thing... Needed for mutexes and file iteration. */
-
-static fs_result fs_result_from_GetLastError(DWORD error) {
-  switch (error) {
-  case ERROR_SUCCESS:
-    return FS_SUCCESS;
-  case ERROR_NOT_ENOUGH_MEMORY:
-    return FS_OUT_OF_MEMORY;
-  case ERROR_BUSY:
-    return FS_BUSY;
-  case ERROR_SEM_TIMEOUT:
-    return FS_TIMEOUT;
-  default:
-    break;
-  }
-
-  return FS_ERROR;
-}
+#ifndef fs_va_copy
+#if !defined(_MSC_VER) || _MSC_VER >= 1800
+#if (defined(__GNUC__) && __GNUC__ < 3)
+#define fs_va_copy(dst, src) \
+  ((dst) =                   \
+       (src)) /* This is untested. Not sure if this is correct for old GCC. */
+#else
+#define fs_va_copy(dst, src) va_copy((dst), (src))
 #endif
-
-/*
-This is the maximum number of ureferenced opened archive files that will be kept
-in memory before garbage collection of those archives is triggered.
-*/
-#ifndef FS_DEFAULT_ARCHIVE_GC_THRESHOLD
-#define FS_DEFAULT_ARCHIVE_GC_THRESHOLD 10
+#else
+#define fs_va_copy(dst, src) ((dst) = (src))
+#endif
 #endif
 
 #define FS_UNUSED(x) (void)x
@@ -51,7 +39,7 @@ in memory before garbage collection of those archives is triggered.
 #define FS_FREE(p) free((p))
 #endif
 
-static void fs_zero_memory_default(void *p, size_t sz) {
+static void fs_zero_memory_default(void* p, size_t sz) {
   if (sz > 0) {
     memset(p, 0, sz);
   }
@@ -79,11 +67,12 @@ static void fs_zero_memory_default(void *p, size_t sz) {
 #define FS_MIN(x, y) (((x) < (y)) ? (x) : (y))
 #define FS_ABS(x) (((x) > 0) ? (x) : -(x))
 #define FS_CLAMP(x, lo, hi) (FS_MAX((lo), FS_MIN((x), (hi))))
-#define FS_OFFSET_PTR(p, offset) (((unsigned char *)(p)) + (offset))
+#define FS_OFFSET_PTR(p, offset) (((unsigned char*)(p)) + (offset))
 #define FS_ALIGN(x, a) ((x + (a - 1)) & ~(a - 1))
+/* END fs_common_macros.c */
 
-FS_API char *fs_strcpy(char *dst, const char *src) {
-  char *dstorig;
+FS_API char* fs_strcpy(char* dst, const char* src) {
+  char* dstorig;
 
   FS_ASSERT(dst != NULL);
   FS_ASSERT(src != NULL);
@@ -104,7 +93,7 @@ FS_API char *fs_strcpy(char *dst, const char *src) {
   return dstorig;
 }
 
-FS_API int fs_strncpy(char *dst, const char *src, size_t count) {
+FS_API int fs_strncpy(char* dst, const char* src, size_t count) {
   size_t maxcount;
   size_t i;
 
@@ -131,7 +120,7 @@ FS_API int fs_strncpy(char *dst, const char *src, size_t count) {
   return ERANGE;
 }
 
-FS_API int fs_strcpy_s(char *dst, size_t dstCap, const char *src) {
+FS_API int fs_strcpy_s(char* dst, size_t dstCap, const char* src) {
   size_t i;
 
   if (dst == 0) {
@@ -158,7 +147,9 @@ FS_API int fs_strcpy_s(char *dst, size_t dstCap, const char *src) {
   return ERANGE;
 }
 
-FS_API int fs_strncpy_s(char *dst, size_t dstCap, const char *src,
+FS_API int fs_strncpy_s(char* dst,
+                        size_t dstCap,
+                        const char* src,
                         size_t count) {
   size_t maxcount;
   size_t i;
@@ -192,7 +183,94 @@ FS_API int fs_strncpy_s(char *dst, size_t dstCap, const char *src,
   return ERANGE;
 }
 
-FS_API int fs_strncmp(const char *str1, const char *str2, size_t maxLen) {
+FS_API int fs_strcat_s(char* dst, size_t dstCap, const char* src) {
+  char* dstorig;
+
+  if (dst == 0) {
+    return EINVAL;
+  }
+  if (dstCap == 0) {
+    return ERANGE;
+  }
+  if (src == 0) {
+    dst[0] = '\0';
+    return EINVAL;
+  }
+
+  dstorig = dst;
+
+  while (dstCap > 0 && dst[0] != '\0') {
+    dst += 1;
+    dstCap -= 1;
+  }
+
+  if (dstCap == 0) {
+    return EINVAL; /* Unterminated. */
+  }
+
+  while (dstCap > 0 && src[0] != '\0') {
+    *dst++ = *src++;
+    dstCap -= 1;
+  }
+
+  if (dstCap > 0) {
+    dst[0] = '\0';
+  } else {
+    dstorig[0] = '\0';
+    return ERANGE;
+  }
+
+  return 0;
+}
+
+FS_API int fs_strncat_s(char* dst,
+                        size_t dstCap,
+                        const char* src,
+                        size_t count) {
+  char* dstorig;
+
+  if (dst == 0) {
+    return EINVAL;
+  }
+  if (dstCap == 0) {
+    return ERANGE;
+  }
+  if (src == 0) {
+    return EINVAL;
+  }
+
+  dstorig = dst;
+
+  while (dstCap > 0 && dst[0] != '\0') {
+    dst += 1;
+    dstCap -= 1;
+  }
+
+  if (dstCap == 0) {
+    return EINVAL; /* Unterminated. */
+  }
+
+  if (count == ((size_t)-1)) { /* _TRUNCATE */
+    count = dstCap - 1;
+  }
+
+  while (dstCap > 0 && src[0] != '\0' && count > 0) {
+    *dst++ = *src++;
+    dstCap -= 1;
+    count -= 1;
+  }
+
+  if (dstCap > 0) {
+    dst[0] = '\0';
+  } else {
+    dstorig[0] = '\0';
+    return ERANGE;
+  }
+
+  return 0;
+}
+
+FS_API int fs_strncmp(const char* str1, const char* str2, size_t maxLen) {
   if (str1 == str2)
     return 0;
 
@@ -227,10 +305,10 @@ FS_API int fs_strncmp(const char *str1, const char *str2, size_t maxLen) {
     return 0;
   }
 
-  return ((unsigned char *)str1)[0] - ((unsigned char *)str2)[0];
+  return ((unsigned char*)str1)[0] - ((unsigned char*)str2)[0];
 }
 
-FS_API int fs_strnicmp_ascii(const char *str1, const char *str2, size_t count) {
+FS_API int fs_strnicmp_ascii(const char* str1, const char* str2, size_t count) {
   if (str1 == NULL || str2 == NULL) {
     return 0;
   }
@@ -266,7 +344,7 @@ FS_API int fs_strnicmp_ascii(const char *str1, const char *str2, size_t count) {
   }
 }
 
-FS_API int fs_strnicmp(const char *str1, const char *str2, size_t count) {
+FS_API int fs_strnicmp(const char* str1, const char* str2, size_t count) {
   /* We will use the standard implementations of strnicmp() and strncasecmp() if
    * they are available. */
 #if defined(_MSC_VER) && _MSC_VER >= 1400
@@ -281,19 +359,39 @@ FS_API int fs_strnicmp(const char *str1, const char *str2, size_t count) {
 #endif
 }
 
+#if defined(_WIN32)
+#include <windows.h> /* <-- Just can't get away from this darn thing... Needed for mutexes and file iteration. */
+
+static fs_result fs_result_from_GetLastError(DWORD error) {
+  switch (error) {
+    case ERROR_SUCCESS:
+      return FS_SUCCESS;
+    case ERROR_NOT_ENOUGH_MEMORY:
+      return FS_OUT_OF_MEMORY;
+    case ERROR_BUSY:
+      return FS_BUSY;
+    case ERROR_SEM_TIMEOUT:
+      return FS_TIMEOUT;
+    default:
+      break;
+  }
+
+  return FS_ERROR;
+}
+#endif
+
 /* BEG fs_allocation_callbacks.c */
-/* Default allocation callbacks. */
-static void *fs_malloc_default(size_t sz, void *pUserData) {
+static void* fs_malloc_default(size_t sz, void* pUserData) {
   FS_UNUSED(pUserData);
   return FS_MALLOC(sz);
 }
 
-static void *fs_realloc_default(void *p, size_t sz, void *pUserData) {
+static void* fs_realloc_default(void* p, size_t sz, void* pUserData) {
   FS_UNUSED(pUserData);
   return FS_REALLOC(p, sz);
 }
 
-static void fs_free_default(void *p, void *pUserData) {
+static void fs_free_default(void* p, void* pUserData) {
   FS_UNUSED(pUserData);
   FS_FREE(p);
 }
@@ -310,7 +408,7 @@ static fs_allocation_callbacks fs_allocation_callbacks_init_default(void) {
 }
 
 static fs_allocation_callbacks fs_allocation_callbacks_init_copy(
-    const fs_allocation_callbacks *pAllocationCallbacks) {
+    const fs_allocation_callbacks* pAllocationCallbacks) {
   if (pAllocationCallbacks != NULL) {
     return *pAllocationCallbacks;
   } else {
@@ -318,8 +416,8 @@ static fs_allocation_callbacks fs_allocation_callbacks_init_copy(
   }
 }
 
-FS_API void *fs_malloc(size_t sz,
-                       const fs_allocation_callbacks *pAllocationCallbacks) {
+FS_API void* fs_malloc(size_t sz,
+                       const fs_allocation_callbacks* pAllocationCallbacks) {
   if (pAllocationCallbacks != NULL) {
     if (pAllocationCallbacks->onMalloc != NULL) {
       return pAllocationCallbacks->onMalloc(sz,
@@ -332,9 +430,9 @@ FS_API void *fs_malloc(size_t sz,
   }
 }
 
-FS_API void *fs_calloc(size_t sz,
-                       const fs_allocation_callbacks *pAllocationCallbacks) {
-  void *p = fs_malloc(sz, pAllocationCallbacks);
+FS_API void* fs_calloc(size_t sz,
+                       const fs_allocation_callbacks* pAllocationCallbacks) {
+  void* p = fs_malloc(sz, pAllocationCallbacks);
   if (p != NULL) {
     FS_ZERO_MEMORY(p, sz);
   }
@@ -342,8 +440,9 @@ FS_API void *fs_calloc(size_t sz,
   return p;
 }
 
-FS_API void *fs_realloc(void *p, size_t sz,
-                        const fs_allocation_callbacks *pAllocationCallbacks) {
+FS_API void* fs_realloc(void* p,
+                        size_t sz,
+                        const fs_allocation_callbacks* pAllocationCallbacks) {
   if (pAllocationCallbacks != NULL) {
     if (pAllocationCallbacks->onRealloc != NULL) {
       return pAllocationCallbacks->onRealloc(p, sz,
@@ -356,8 +455,8 @@ FS_API void *fs_realloc(void *p, size_t sz,
   }
 }
 
-FS_API void fs_free(void *p,
-                    const fs_allocation_callbacks *pAllocationCallbacks) {
+FS_API void fs_free(void* p,
+                    const fs_allocation_callbacks* pAllocationCallbacks) {
   if (p == NULL) {
     return;
   }
@@ -410,7 +509,7 @@ typedef pthread_cond_t fs_pthread_cond;
 
 #if defined(_WIN32)
 typedef struct {
-  void *handle; /* HANDLE, CreateMutex(), CreateEvent() */
+  void* handle; /* HANDLE, CreateMutex(), CreateEvent() */
   int type;
 } fs_mtx;
 #else
@@ -428,7 +527,7 @@ enum {
 };
 
 #if defined(_WIN32)
-FS_API int fs_mtx_init(fs_mtx *mutex, int type) {
+FS_API int fs_mtx_init(fs_mtx* mutex, int type) {
   HANDLE hMutex;
 
   if (mutex == NULL) {
@@ -455,13 +554,13 @@ FS_API int fs_mtx_init(fs_mtx *mutex, int type) {
     return fs_result_from_GetLastError(GetLastError());
   }
 
-  mutex->handle = (void *)hMutex;
+  mutex->handle = (void*)hMutex;
   mutex->type = type;
 
   return FS_SUCCESS;
 }
 
-FS_API void fs_mtx_destroy(fs_mtx *mutex) {
+FS_API void fs_mtx_destroy(fs_mtx* mutex) {
   if (mutex == NULL) {
     return;
   }
@@ -469,7 +568,7 @@ FS_API void fs_mtx_destroy(fs_mtx *mutex) {
   CloseHandle((HANDLE)mutex->handle);
 }
 
-FS_API int fs_mtx_lock(fs_mtx *mutex) {
+FS_API int fs_mtx_lock(fs_mtx* mutex) {
   DWORD result;
 
   if (mutex == NULL) {
@@ -484,7 +583,7 @@ FS_API int fs_mtx_lock(fs_mtx *mutex) {
   return FS_SUCCESS;
 }
 
-FS_API int fs_mtx_trylock(fs_mtx *mutex) {
+FS_API int fs_mtx_trylock(fs_mtx* mutex) {
   DWORD result;
 
   if (mutex == NULL) {
@@ -499,7 +598,7 @@ FS_API int fs_mtx_trylock(fs_mtx *mutex) {
   return FS_SUCCESS;
 }
 
-FS_API int fs_mtx_unlock(fs_mtx *mutex) {
+FS_API int fs_mtx_unlock(fs_mtx* mutex) {
   BOOL result;
 
   if (mutex == NULL) {
@@ -519,7 +618,7 @@ FS_API int fs_mtx_unlock(fs_mtx *mutex) {
   return FS_SUCCESS;
 }
 #else
-FS_API int fs_mtx_init(fs_mtx *mutex, int type) {
+FS_API int fs_mtx_init(fs_mtx* mutex, int type) {
   int result;
   pthread_mutexattr_t
       attr; /* For specifying whether or not the mutex is recursive. */
@@ -537,7 +636,7 @@ FS_API int fs_mtx_init(fs_mtx *mutex, int type) {
         PTHREAD_MUTEX_NORMAL); /* Will deadlock. Consistent with Win32. */
   }
 
-  result = pthread_mutex_init((pthread_mutex_t *)mutex, &attr);
+  result = pthread_mutex_init((pthread_mutex_t*)mutex, &attr);
   pthread_mutexattr_destroy(&attr);
 
   if (result != 0) {
@@ -547,22 +646,22 @@ FS_API int fs_mtx_init(fs_mtx *mutex, int type) {
   return FS_SUCCESS;
 }
 
-FS_API void fs_mtx_destroy(fs_mtx *mutex) {
+FS_API void fs_mtx_destroy(fs_mtx* mutex) {
   if (mutex == NULL) {
     return;
   }
 
-  pthread_mutex_destroy((pthread_mutex_t *)mutex);
+  pthread_mutex_destroy((pthread_mutex_t*)mutex);
 }
 
-FS_API int fs_mtx_lock(fs_mtx *mutex) {
+FS_API int fs_mtx_lock(fs_mtx* mutex) {
   int result;
 
   if (mutex == NULL) {
     return EINVAL;
   }
 
-  result = pthread_mutex_lock((pthread_mutex_t *)mutex);
+  result = pthread_mutex_lock((pthread_mutex_t*)mutex);
   if (result != 0) {
     return EINVAL;
   }
@@ -570,14 +669,14 @@ FS_API int fs_mtx_lock(fs_mtx *mutex) {
   return FS_SUCCESS;
 }
 
-FS_API int fs_mtx_trylock(fs_mtx *mutex) {
+FS_API int fs_mtx_trylock(fs_mtx* mutex) {
   int result;
 
   if (mutex == NULL) {
     return EINVAL;
   }
 
-  result = pthread_mutex_trylock((pthread_mutex_t *)mutex);
+  result = pthread_mutex_trylock((pthread_mutex_t*)mutex);
   if (result != 0) {
     if (result == EBUSY) {
       return EBUSY;
@@ -589,14 +688,14 @@ FS_API int fs_mtx_trylock(fs_mtx *mutex) {
   return FS_SUCCESS;
 }
 
-FS_API int fs_mtx_unlock(fs_mtx *mutex) {
+FS_API int fs_mtx_unlock(fs_mtx* mutex) {
   int result;
 
   if (mutex == NULL) {
     return EINVAL;
   }
 
-  result = pthread_mutex_unlock((pthread_mutex_t *)mutex);
+  result = pthread_mutex_unlock((pthread_mutex_t*)mutex);
   if (result != 0) {
     return EINVAL;
   }
@@ -607,8 +706,8 @@ FS_API int fs_mtx_unlock(fs_mtx *mutex) {
 /* END fs_thread.c */
 
 /* BEG fs_stream.c */
-FS_API fs_result fs_stream_init(const fs_stream_vtable *pVTable,
-                                fs_stream *pStream) {
+FS_API fs_result fs_stream_init(const fs_stream_vtable* pVTable,
+                                fs_stream* pStream) {
   if (pStream == NULL) {
     return FS_INVALID_ARGS;
   }
@@ -622,8 +721,10 @@ FS_API fs_result fs_stream_init(const fs_stream_vtable *pVTable,
   return FS_SUCCESS;
 }
 
-FS_API fs_result fs_stream_read(fs_stream *pStream, void *pDst,
-                                size_t bytesToRead, size_t *pBytesRead) {
+FS_API fs_result fs_stream_read(fs_stream* pStream,
+                                void* pDst,
+                                size_t bytesToRead,
+                                size_t* pBytesRead) {
   size_t bytesRead;
   fs_result result;
 
@@ -644,13 +745,23 @@ FS_API fs_result fs_stream_read(fs_stream *pStream, void *pDst,
 
   if (pBytesRead != NULL) {
     *pBytesRead = bytesRead;
+  } else {
+    /*
+    The caller has not specified a destination for the bytes read. If we didn't
+    output the exact number of bytes as requested we'll need to report an error.
+    */
+    if (result == FS_SUCCESS && bytesRead != bytesToRead) {
+      result = FS_ERROR;
+    }
   }
 
   return result;
 }
 
-FS_API fs_result fs_stream_write(fs_stream *pStream, const void *pSrc,
-                                 size_t bytesToWrite, size_t *pBytesWritten) {
+FS_API fs_result fs_stream_write(fs_stream* pStream,
+                                 const void* pSrc,
+                                 size_t bytesToWrite,
+                                 size_t* pBytesWritten) {
   size_t bytesWritten;
   fs_result result;
 
@@ -676,7 +787,7 @@ FS_API fs_result fs_stream_write(fs_stream *pStream, const void *pSrc,
   return result;
 }
 
-FS_API fs_result fs_stream_writef(fs_stream *pStream, const char *fmt, ...) {
+FS_API fs_result fs_stream_writef(fs_stream* pStream, const char* fmt, ...) {
   va_list args;
   fs_result result;
 
@@ -687,9 +798,11 @@ FS_API fs_result fs_stream_writef(fs_stream *pStream, const char *fmt, ...) {
   return result;
 }
 
-FS_API fs_result fs_stream_writef_ex(
-    fs_stream *pStream, const fs_allocation_callbacks *pAllocationCallbacks,
-    const char *fmt, ...) {
+FS_API fs_result
+fs_stream_writef_ex(fs_stream* pStream,
+                    const fs_allocation_callbacks* pAllocationCallbacks,
+                    const char* fmt,
+                    ...) {
   va_list args;
   fs_result result;
 
@@ -700,23 +813,32 @@ FS_API fs_result fs_stream_writef_ex(
   return result;
 }
 
-FS_API fs_result fs_stream_writefv(fs_stream *pStream, const char *fmt,
+FS_API fs_result fs_stream_writefv(fs_stream* pStream,
+                                   const char* fmt,
                                    va_list args) {
   return fs_stream_writefv_ex(pStream, NULL, fmt, args);
 }
 
-FS_API fs_result fs_stream_writefv_ex(
-    fs_stream *pStream, const fs_allocation_callbacks *pAllocationCallbacks,
-    const char *fmt, va_list args) {
+FS_API fs_result
+fs_stream_writefv_ex(fs_stream* pStream,
+                     const fs_allocation_callbacks* pAllocationCallbacks,
+                     const char* fmt,
+                     va_list args) {
   fs_result result;
   int strLen;
   char pStrStack[1024];
+  va_list args2;
 
   if (pStream == NULL || fmt == NULL) {
     return FS_INVALID_ARGS;
   }
 
-  strLen = fs_vsnprintf(pStrStack, sizeof(pStrStack), fmt, args);
+  fs_va_copy(args2, args);
+  {
+    strLen = fs_vsnprintf(pStrStack, sizeof(pStrStack), fmt, args2);
+  }
+  va_end(args2);
+
   if (strLen < 0) {
     return FS_ERROR; /* Encoding error. */
   }
@@ -726,9 +848,9 @@ FS_API fs_result fs_stream_writefv_ex(
     result = fs_stream_write(pStream, pStrStack, strLen, NULL);
   } else {
     /* Stack buffer is not big enough. Allocate space on the heap. */
-    char *pStrHeap = NULL;
+    char* pStrHeap = NULL;
 
-    pStrHeap = (char *)fs_malloc(strLen + 1, pAllocationCallbacks);
+    pStrHeap = (char*)fs_malloc(strLen + 1, pAllocationCallbacks);
     if (pStrHeap == NULL) {
       return FS_OUT_OF_MEMORY;
     }
@@ -742,7 +864,8 @@ FS_API fs_result fs_stream_writefv_ex(
   return result;
 }
 
-FS_API fs_result fs_stream_seek(fs_stream *pStream, fs_int64 offset,
+FS_API fs_result fs_stream_seek(fs_stream* pStream,
+                                fs_int64 offset,
                                 fs_seek_origin origin) {
   if (pStream == NULL) {
     return FS_INVALID_ARGS;
@@ -755,7 +878,7 @@ FS_API fs_result fs_stream_seek(fs_stream *pStream, fs_int64 offset,
   return pStream->pVTable->seek(pStream, offset, origin);
 }
 
-FS_API fs_result fs_stream_tell(fs_stream *pStream, fs_int64 *pCursor) {
+FS_API fs_result fs_stream_tell(fs_stream* pStream, fs_int64* pCursor) {
   if (pCursor == NULL) {
     return FS_INVALID_ARGS; /* It does not make sense to call this without a
                                variable to receive the cursor position. */
@@ -774,11 +897,12 @@ FS_API fs_result fs_stream_tell(fs_stream *pStream, fs_int64 *pCursor) {
   return pStream->pVTable->tell(pStream, pCursor);
 }
 
-FS_API fs_result fs_stream_duplicate(
-    fs_stream *pStream, const fs_allocation_callbacks *pAllocationCallbacks,
-    fs_stream **ppDuplicatedStream) {
+FS_API fs_result
+fs_stream_duplicate(fs_stream* pStream,
+                    const fs_allocation_callbacks* pAllocationCallbacks,
+                    fs_stream** ppDuplicatedStream) {
   fs_result result;
-  fs_stream *pDuplicatedStream;
+  fs_stream* pDuplicatedStream;
 
   if (ppDuplicatedStream == NULL) {
     return FS_INVALID_ARGS;
@@ -795,7 +919,7 @@ FS_API fs_result fs_stream_duplicate(
     return FS_NOT_IMPLEMENTED;
   }
 
-  pDuplicatedStream = (fs_stream *)fs_calloc(
+  pDuplicatedStream = (fs_stream*)fs_calloc(
       pStream->pVTable->duplicate_alloc_size(pStream), pAllocationCallbacks);
   if (pDuplicatedStream == NULL) {
     return FS_OUT_OF_MEMORY;
@@ -819,8 +943,8 @@ FS_API fs_result fs_stream_duplicate(
 }
 
 FS_API void fs_stream_delete_duplicate(
-    fs_stream *pDuplicatedStream,
-    const fs_allocation_callbacks *pAllocationCallbacks) {
+    fs_stream* pDuplicatedStream,
+    const fs_allocation_callbacks* pAllocationCallbacks) {
   if (pDuplicatedStream == NULL) {
     return;
   }
@@ -833,13 +957,15 @@ FS_API void fs_stream_delete_duplicate(
 }
 
 FS_API fs_result
-fs_stream_read_to_end(fs_stream *pStream, fs_format format,
-                      const fs_allocation_callbacks *pAllocationCallbacks,
-                      void **ppData, size_t *pDataSize) {
+fs_stream_read_to_end(fs_stream* pStream,
+                      fs_format format,
+                      const fs_allocation_callbacks* pAllocationCallbacks,
+                      void** ppData,
+                      size_t* pDataSize) {
   fs_result result = FS_SUCCESS;
   size_t dataSize = 0;
   size_t dataCap = 0;
-  void *pData = NULL;
+  void* pData = NULL;
 
   if (ppData != NULL) {
     *ppData = NULL;
@@ -858,7 +984,7 @@ fs_stream_read_to_end(fs_stream *pStream, fs_format format,
     size_t bytesRead;
 
     if (dataSize + chunkSize > dataCap) {
-      void *pNewData;
+      void* pNewData;
       size_t newCap = dataCap * 2;
       if (newCap == 0) {
         newCap = chunkSize;
@@ -888,7 +1014,7 @@ fs_stream_read_to_end(fs_stream *pStream, fs_format format,
   /* If we're opening in text mode, we need to append a null terminator. */
   if (format == FS_FORMAT_TEXT) {
     if (dataSize >= dataCap) {
-      void *pNewData;
+      void* pNewData;
       pNewData = fs_realloc(pData, dataSize + 1, pAllocationCallbacks);
       if (pNewData == NULL) {
         fs_free(pData, pAllocationCallbacks);
@@ -898,7 +1024,7 @@ fs_stream_read_to_end(fs_stream *pStream, fs_format format,
       pData = pNewData;
     }
 
-    ((char *)pData)[dataSize] = '\0';
+    ((char*)pData)[dataSize] = '\0';
   }
 
   *ppData = pData;
@@ -916,9 +1042,9 @@ fs_stream_read_to_end(fs_stream *pStream, fs_format format,
 }
 /* END fs_stream.c */
 
-/* BEG fs_backend.c */
-static size_t fs_backend_alloc_size(const fs_backend *pBackend,
-                                    const void *pBackendConfig) {
+/* BEG fs.c */
+static size_t fs_backend_alloc_size(const fs_backend* pBackend,
+                                    const void* pBackendConfig) {
   FS_ASSERT(pBackend != NULL);
 
   if (pBackend->alloc_size == NULL) {
@@ -928,9 +1054,10 @@ static size_t fs_backend_alloc_size(const fs_backend *pBackend,
   }
 }
 
-static fs_result fs_backend_init(const fs_backend *pBackend, fs *pFS,
-                                 const void *pBackendConfig,
-                                 fs_stream *pStream) {
+static fs_result fs_backend_init(const fs_backend* pBackend,
+                                 fs* pFS,
+                                 const void* pBackendConfig,
+                                 fs_stream* pStream) {
   FS_ASSERT(pBackend != NULL);
 
   if (pBackend->init == NULL) {
@@ -940,7 +1067,7 @@ static fs_result fs_backend_init(const fs_backend *pBackend, fs *pFS,
   }
 }
 
-static void fs_backend_uninit(const fs_backend *pBackend, fs *pFS) {
+static void fs_backend_uninit(const fs_backend* pBackend, fs* pFS) {
   FS_ASSERT(pBackend != NULL);
 
   if (pBackend->uninit == NULL) {
@@ -950,8 +1077,10 @@ static void fs_backend_uninit(const fs_backend *pBackend, fs *pFS) {
   }
 }
 
-static fs_result fs_backend_ioctl(const fs_backend *pBackend, fs *pFS,
-                                  int command, void *pArgs) {
+static fs_result fs_backend_ioctl(const fs_backend* pBackend,
+                                  fs* pFS,
+                                  int command,
+                                  void* pArgs) {
   FS_ASSERT(pBackend != NULL);
 
   if (pBackend->ioctl == NULL) {
@@ -961,8 +1090,9 @@ static fs_result fs_backend_ioctl(const fs_backend *pBackend, fs *pFS,
   }
 }
 
-static fs_result fs_backend_remove(const fs_backend *pBackend, fs *pFS,
-                                   const char *pFilePath) {
+static fs_result fs_backend_remove(const fs_backend* pBackend,
+                                   fs* pFS,
+                                   const char* pFilePath) {
   FS_ASSERT(pBackend != NULL);
 
   if (pBackend->remove == NULL) {
@@ -972,8 +1102,10 @@ static fs_result fs_backend_remove(const fs_backend *pBackend, fs *pFS,
   }
 }
 
-static fs_result fs_backend_rename(const fs_backend *pBackend, fs *pFS,
-                                   const char *pOldName, const char *pNewName) {
+static fs_result fs_backend_rename(const fs_backend* pBackend,
+                                   fs* pFS,
+                                   const char* pOldName,
+                                   const char* pNewName) {
   FS_ASSERT(pBackend != NULL);
 
   if (pBackend->remove == NULL) {
@@ -983,20 +1115,23 @@ static fs_result fs_backend_rename(const fs_backend *pBackend, fs *pFS,
   }
 }
 
-static fs_result fs_backend_mkdir(const fs_backend *pBackend, fs *pFS,
-                                  const char *pPath) {
+static fs_result fs_backend_mkdir(const fs_backend* pBackend,
+                                  fs* pFS,
+                                  const char* pPath) {
   FS_ASSERT(pBackend != NULL);
 
-  if (pBackend->remove == NULL) {
+  if (pBackend->mkdir == NULL) {
     return FS_NOT_IMPLEMENTED;
   } else {
     return pBackend->mkdir(pFS, pPath);
   }
 }
 
-static fs_result fs_backend_info(const fs_backend *pBackend, fs *pFS,
-                                 const char *pPath, int openMode,
-                                 fs_file_info *pInfo) {
+static fs_result fs_backend_info(const fs_backend* pBackend,
+                                 fs* pFS,
+                                 const char* pPath,
+                                 int openMode,
+                                 fs_file_info* pInfo) {
   FS_ASSERT(pBackend != NULL);
 
   if (pBackend->info == NULL) {
@@ -1006,7 +1141,7 @@ static fs_result fs_backend_info(const fs_backend *pBackend, fs *pFS,
   }
 }
 
-static size_t fs_backend_file_alloc_size(const fs_backend *pBackend, fs *pFS) {
+static size_t fs_backend_file_alloc_size(const fs_backend* pBackend, fs* pFS) {
   FS_ASSERT(pBackend != NULL);
 
   if (pBackend->file_alloc_size == NULL) {
@@ -1016,9 +1151,12 @@ static size_t fs_backend_file_alloc_size(const fs_backend *pBackend, fs *pFS) {
   }
 }
 
-static fs_result fs_backend_file_open(const fs_backend *pBackend, fs *pFS,
-                                      fs_stream *pStream, const char *pFilePath,
-                                      int openMode, fs_file *pFile) {
+static fs_result fs_backend_file_open(const fs_backend* pBackend,
+                                      fs* pFS,
+                                      fs_stream* pStream,
+                                      const char* pFilePath,
+                                      int openMode,
+                                      fs_file* pFile) {
   FS_ASSERT(pBackend != NULL);
 
   if (pBackend->file_open == NULL) {
@@ -1028,9 +1166,10 @@ static fs_result fs_backend_file_open(const fs_backend *pBackend, fs *pFS,
   }
 }
 
-static fs_result fs_backend_file_open_handle(const fs_backend *pBackend,
-                                             fs *pFS, void *hBackendFile,
-                                             fs_file *pFile) {
+static fs_result fs_backend_file_open_handle(const fs_backend* pBackend,
+                                             fs* pFS,
+                                             void* hBackendFile,
+                                             fs_file* pFile) {
   FS_ASSERT(pBackend != NULL);
 
   if (pBackend->file_open_handle == NULL) {
@@ -1040,7 +1179,7 @@ static fs_result fs_backend_file_open_handle(const fs_backend *pBackend,
   }
 }
 
-static void fs_backend_file_close(const fs_backend *pBackend, fs_file *pFile) {
+static void fs_backend_file_close(const fs_backend* pBackend, fs_file* pFile) {
   FS_ASSERT(pBackend != NULL);
 
   if (pBackend->file_close == NULL) {
@@ -1050,9 +1189,11 @@ static void fs_backend_file_close(const fs_backend *pBackend, fs_file *pFile) {
   }
 }
 
-static fs_result fs_backend_file_read(const fs_backend *pBackend,
-                                      fs_file *pFile, void *pDst,
-                                      size_t bytesToRead, size_t *pBytesRead) {
+static fs_result fs_backend_file_read(const fs_backend* pBackend,
+                                      fs_file* pFile,
+                                      void* pDst,
+                                      size_t bytesToRead,
+                                      size_t* pBytesRead) {
   FS_ASSERT(pBackend != NULL);
 
   if (pBackend->file_read == NULL) {
@@ -1062,10 +1203,11 @@ static fs_result fs_backend_file_read(const fs_backend *pBackend,
   }
 }
 
-static fs_result fs_backend_file_write(const fs_backend *pBackend,
-                                       fs_file *pFile, const void *pSrc,
+static fs_result fs_backend_file_write(const fs_backend* pBackend,
+                                       fs_file* pFile,
+                                       const void* pSrc,
                                        size_t bytesToWrite,
-                                       size_t *pBytesWritten) {
+                                       size_t* pBytesWritten) {
   FS_ASSERT(pBackend != NULL);
 
   if (pBackend->file_write == NULL) {
@@ -1075,8 +1217,9 @@ static fs_result fs_backend_file_write(const fs_backend *pBackend,
   }
 }
 
-static fs_result fs_backend_file_seek(const fs_backend *pBackend,
-                                      fs_file *pFile, fs_int64 offset,
+static fs_result fs_backend_file_seek(const fs_backend* pBackend,
+                                      fs_file* pFile,
+                                      fs_int64 offset,
                                       fs_seek_origin origin) {
   FS_ASSERT(pBackend != NULL);
 
@@ -1087,8 +1230,9 @@ static fs_result fs_backend_file_seek(const fs_backend *pBackend,
   }
 }
 
-static fs_result fs_backend_file_tell(const fs_backend *pBackend,
-                                      fs_file *pFile, fs_int64 *pCursor) {
+static fs_result fs_backend_file_tell(const fs_backend* pBackend,
+                                      fs_file* pFile,
+                                      fs_int64* pCursor) {
   FS_ASSERT(pBackend != NULL);
 
   if (pBackend->file_tell == NULL) {
@@ -1098,8 +1242,8 @@ static fs_result fs_backend_file_tell(const fs_backend *pBackend,
   }
 }
 
-static fs_result fs_backend_file_flush(const fs_backend *pBackend,
-                                       fs_file *pFile) {
+static fs_result fs_backend_file_flush(const fs_backend* pBackend,
+                                       fs_file* pFile) {
   FS_ASSERT(pBackend != NULL);
 
   if (pBackend->file_flush == NULL) {
@@ -1109,8 +1253,9 @@ static fs_result fs_backend_file_flush(const fs_backend *pBackend,
   }
 }
 
-static fs_result fs_backend_file_info(const fs_backend *pBackend,
-                                      fs_file *pFile, fs_file_info *pInfo) {
+static fs_result fs_backend_file_info(const fs_backend* pBackend,
+                                      fs_file* pFile,
+                                      fs_file_info* pInfo) {
   FS_ASSERT(pBackend != NULL);
 
   if (pBackend->file_info == NULL) {
@@ -1120,9 +1265,9 @@ static fs_result fs_backend_file_info(const fs_backend *pBackend,
   }
 }
 
-static fs_result fs_backend_file_duplicate(const fs_backend *pBackend,
-                                           fs_file *pFile,
-                                           fs_file *pDuplicatedFile) {
+static fs_result fs_backend_file_duplicate(const fs_backend* pBackend,
+                                           fs_file* pFile,
+                                           fs_file* pDuplicatedFile) {
   FS_ASSERT(pBackend != NULL);
 
   if (pBackend->file_duplicate == NULL) {
@@ -1132,15 +1277,16 @@ static fs_result fs_backend_file_duplicate(const fs_backend *pBackend,
   }
 }
 
-static fs_iterator *fs_backend_first(const fs_backend *pBackend, fs *pFS,
-                                     const char *pDirectoryPath,
+static fs_iterator* fs_backend_first(const fs_backend* pBackend,
+                                     fs* pFS,
+                                     const char* pDirectoryPath,
                                      size_t directoryPathLen) {
   FS_ASSERT(pBackend != NULL);
 
   if (pBackend->first == NULL) {
     return NULL;
   } else {
-    fs_iterator *pIterator;
+    fs_iterator* pIterator;
 
     pIterator = pBackend->first(pFS, pDirectoryPath, directoryPathLen);
 
@@ -1154,8 +1300,8 @@ static fs_iterator *fs_backend_first(const fs_backend *pBackend, fs *pFS,
   }
 }
 
-static fs_iterator *fs_backend_next(const fs_backend *pBackend,
-                                    fs_iterator *pIterator) {
+static fs_iterator* fs_backend_next(const fs_backend* pBackend,
+                                    fs_iterator* pIterator) {
   FS_ASSERT(pBackend != NULL);
 
   if (pBackend->next == NULL) {
@@ -1165,8 +1311,8 @@ static fs_iterator *fs_backend_next(const fs_backend *pBackend,
   }
 }
 
-static void fs_backend_free_iterator(const fs_backend *pBackend,
-                                     fs_iterator *pIterator) {
+static void fs_backend_free_iterator(const fs_backend* pBackend,
+                                     fs_iterator* pIterator) {
   FS_ASSERT(pBackend != NULL);
 
   if (pBackend->free_iterator == NULL) {
@@ -1175,9 +1321,7 @@ static void fs_backend_free_iterator(const fs_backend *pBackend,
     pBackend->free_iterator(pIterator);
   }
 }
-/* END fs_backend.c */
 
-/* BEG fs_proxy.c */
 /*
 This is a special backend that we use for archives so we can intercept opening
 and closing of files within those archives and do any necessary reference
@@ -1185,35 +1329,35 @@ counting.
 */
 
 /* Forward declarations. */
-static size_t fs_increment_opened_archive_ref_count(fs *pFS, fs *pArchive);
-static size_t fs_decrement_opened_archive_ref_count(fs *pFS, fs *pArchive);
+static size_t fs_increment_opened_archive_ref_count(fs* pFS, fs* pArchive);
+static size_t fs_decrement_opened_archive_ref_count(fs* pFS, fs* pArchive);
 
 typedef struct fs_proxy {
-  const fs_backend *pBackend;
-  fs_file *pArchiveFile;
+  const fs_backend* pBackend;
+  fs_file* pArchiveFile;
 } fs_proxy;
 
 typedef struct fs_proxy_config {
-  const fs_backend *pBackend;
-  const void *pBackendConfig;
+  const fs_backend* pBackend;
+  const void* pBackendConfig;
 } fs_proxy_config;
 
 typedef struct fs_file_proxy {
   fs_bool32 unrefArchiveOnClose;
 } fs_file_proxy;
 
-static fs_proxy *fs_proxy_get_backend_data(fs *pFS) {
-  return (fs_proxy *)FS_OFFSET_PTR(fs_get_backend_data(pFS),
-                                   fs_get_backend_data_size(pFS) -
-                                       sizeof(fs_proxy));
+static fs_proxy* fs_proxy_get_backend_data(fs* pFS) {
+  return (fs_proxy*)FS_OFFSET_PTR(
+      fs_get_backend_data(pFS),
+      fs_get_backend_data_size(pFS) - sizeof(fs_proxy));
 }
 
-static const fs_backend *fs_proxy_get_backend(fs *pFS) {
+static const fs_backend* fs_proxy_get_backend(fs* pFS) {
   return fs_proxy_get_backend_data(pFS)->pBackend;
 }
 
-static fs_file *fs_proxy_get_archive_file(fs *pFS) {
-  fs_proxy *pProxy;
+static fs_file* fs_proxy_get_archive_file(fs* pFS) {
+  fs_proxy* pProxy;
 
   pProxy = fs_proxy_get_backend_data(pFS);
   FS_ASSERT(pProxy != NULL);
@@ -1221,29 +1365,34 @@ static fs_file *fs_proxy_get_archive_file(fs *pFS) {
   return pProxy->pArchiveFile;
 }
 
-static fs *fs_proxy_get_owner_fs(fs *pFS) {
+static fs* fs_proxy_get_owner_fs(fs* pFS) {
   return fs_file_get_fs(fs_proxy_get_archive_file(pFS));
 }
 
-static fs_file_proxy *fs_file_proxy_get_backend_data(fs_file *pFile) {
-  return (fs_file_proxy *)FS_OFFSET_PTR(fs_file_get_backend_data(pFile),
-                                        fs_file_get_backend_data_size(pFile) -
-                                            sizeof(fs_file_proxy));
+static fs_file_proxy* fs_file_proxy_get_backend_data(fs_file* pFile) {
+  return (fs_file_proxy*)FS_OFFSET_PTR(
+      fs_file_get_backend_data(pFile),
+      fs_file_get_backend_data_size(pFile) - sizeof(fs_file_proxy));
 }
 
-static fs_bool32 fs_file_proxy_get_unref_archive_on_close(fs_file *pFile) {
-  return fs_file_proxy_get_backend_data(pFile)->unrefArchiveOnClose;
+static fs_bool32 fs_file_proxy_get_unref_archive_on_close(fs_file* pFile) {
+  fs_file_proxy* pFileProxy = fs_file_proxy_get_backend_data(pFile);
+  FS_ASSERT(pFileProxy != NULL);
+
+  return pFileProxy->unrefArchiveOnClose;
 }
 
-static void
-fs_file_proxy_set_unref_archive_on_close(fs_file *pFile,
-                                         fs_bool32 unrefArchiveOnClose) {
-  fs_file_proxy_get_backend_data(pFile)->unrefArchiveOnClose =
-      unrefArchiveOnClose;
+static void fs_file_proxy_set_unref_archive_on_close(
+    fs_file* pFile,
+    fs_bool32 unrefArchiveOnClose) {
+  fs_file_proxy* pFileProxy = fs_file_proxy_get_backend_data(pFile);
+  FS_ASSERT(pFileProxy != NULL);
+
+  pFileProxy->unrefArchiveOnClose = unrefArchiveOnClose;
 }
 
-static size_t fs_alloc_size_proxy(const void *pBackendConfig) {
-  const fs_proxy_config *pProxyConfig = (const fs_proxy_config *)pBackendConfig;
+static size_t fs_alloc_size_proxy(const void* pBackendConfig) {
+  const fs_proxy_config* pProxyConfig = (const fs_proxy_config*)pBackendConfig;
   FS_ASSERT(pProxyConfig != NULL); /* <-- We must have a config since that's
                                       where the backend is specified. */
 
@@ -1252,10 +1401,11 @@ static size_t fs_alloc_size_proxy(const void *pBackendConfig) {
          sizeof(fs_proxy);
 }
 
-static fs_result fs_init_proxy(fs *pFS, const void *pBackendConfig,
-                               fs_stream *pStream) {
-  const fs_proxy_config *pProxyConfig = (const fs_proxy_config *)pBackendConfig;
-  fs_proxy *pProxy;
+static fs_result fs_init_proxy(fs* pFS,
+                               const void* pBackendConfig,
+                               fs_stream* pStream) {
+  const fs_proxy_config* pProxyConfig = (const fs_proxy_config*)pBackendConfig;
+  fs_proxy* pProxy;
 
   FS_ASSERT(pProxyConfig != NULL); /* <-- We must have a config since that's
                                       where the backend is specified. */
@@ -1267,58 +1417,65 @@ static fs_result fs_init_proxy(fs *pFS, const void *pBackendConfig,
 
   pProxy->pBackend = pProxyConfig->pBackend;
   pProxy->pArchiveFile =
-      (fs_file *)pStream; /* The stream will always be a fs_file when using this
-                             backend. */
+      (fs_file*)pStream; /* The stream will always be a fs_file when using this
+                            backend. */
 
   return fs_backend_init(pProxyConfig->pBackend, pFS,
                          pProxyConfig->pBackendConfig, pStream);
 }
 
-static void fs_uninit_proxy(fs *pFS) {
+static void fs_uninit_proxy(fs* pFS) {
   fs_backend_uninit(fs_proxy_get_backend(pFS), pFS);
 }
 
-static fs_result fs_ioctl_proxy(fs *pFS, int command, void *pArgs) {
+static fs_result fs_ioctl_proxy(fs* pFS, int command, void* pArgs) {
   return fs_backend_ioctl(fs_proxy_get_backend(pFS), pFS, command, pArgs);
 }
 
-static fs_result fs_remove_proxy(fs *pFS, const char *pFilePath) {
+static fs_result fs_remove_proxy(fs* pFS, const char* pFilePath) {
   return fs_backend_remove(fs_proxy_get_backend(pFS), pFS, pFilePath);
 }
 
-static fs_result fs_rename_proxy(fs *pFS, const char *pOldName,
-                                 const char *pNewName) {
+static fs_result fs_rename_proxy(fs* pFS,
+                                 const char* pOldName,
+                                 const char* pNewName) {
   return fs_backend_rename(fs_proxy_get_backend(pFS), pFS, pOldName, pNewName);
 }
 
-static fs_result fs_mkdir_proxy(fs *pFS, const char *pPath) {
+static fs_result fs_mkdir_proxy(fs* pFS, const char* pPath) {
   return fs_backend_mkdir(fs_proxy_get_backend(pFS), pFS, pPath);
 }
 
-static fs_result fs_info_proxy(fs *pFS, const char *pPath, int openMode,
-                               fs_file_info *pInfo) {
+static fs_result fs_info_proxy(fs* pFS,
+                               const char* pPath,
+                               int openMode,
+                               fs_file_info* pInfo) {
   return fs_backend_info(fs_proxy_get_backend(pFS), pFS, pPath, openMode,
                          pInfo);
 }
 
-static size_t fs_file_alloc_size_proxy(fs *pFS) {
-  return fs_backend_file_alloc_size(fs_proxy_get_backend(pFS), pFS);
+static size_t fs_file_alloc_size_proxy(fs* pFS) {
+  return fs_backend_file_alloc_size(fs_proxy_get_backend(pFS), pFS) +
+         sizeof(fs_file_proxy);
 }
 
-static fs_result fs_file_open_proxy(fs *pFS, fs_stream *pStream,
-                                    const char *pFilePath, int openMode,
-                                    fs_file *pFile) {
+static fs_result fs_file_open_proxy(fs* pFS,
+                                    fs_stream* pStream,
+                                    const char* pFilePath,
+                                    int openMode,
+                                    fs_file* pFile) {
   return fs_backend_file_open(fs_proxy_get_backend(pFS), pFS, pStream,
                               pFilePath, openMode, pFile);
 }
 
-static fs_result fs_file_open_handle_proxy(fs *pFS, void *hBackendFile,
-                                           fs_file *pFile) {
+static fs_result fs_file_open_handle_proxy(fs* pFS,
+                                           void* hBackendFile,
+                                           fs_file* pFile) {
   return fs_backend_file_open_handle(fs_proxy_get_backend(pFS), pFS,
                                      hBackendFile, pFile);
 }
 
-static void fs_file_close_proxy(fs_file *pFile) {
+static void fs_file_close_proxy(fs_file* pFile) {
   fs_backend_file_close(fs_proxy_get_backend(fs_file_get_fs(pFile)), pFile);
 
   /*
@@ -1337,44 +1494,48 @@ static void fs_file_close_proxy(fs_file *pFile) {
   }
 }
 
-static fs_result fs_file_read_proxy(fs_file *pFile, void *pDst,
-                                    size_t bytesToRead, size_t *pBytesRead) {
+static fs_result fs_file_read_proxy(fs_file* pFile,
+                                    void* pDst,
+                                    size_t bytesToRead,
+                                    size_t* pBytesRead) {
   return fs_backend_file_read(fs_proxy_get_backend(fs_file_get_fs(pFile)),
                               pFile, pDst, bytesToRead, pBytesRead);
 }
 
-static fs_result fs_file_write_proxy(fs_file *pFile, const void *pSrc,
+static fs_result fs_file_write_proxy(fs_file* pFile,
+                                     const void* pSrc,
                                      size_t bytesToWrite,
-                                     size_t *pBytesWritten) {
+                                     size_t* pBytesWritten) {
   return fs_backend_file_write(fs_proxy_get_backend(fs_file_get_fs(pFile)),
                                pFile, pSrc, bytesToWrite, pBytesWritten);
 }
 
-static fs_result fs_file_seek_proxy(fs_file *pFile, fs_int64 offset,
+static fs_result fs_file_seek_proxy(fs_file* pFile,
+                                    fs_int64 offset,
                                     fs_seek_origin origin) {
   return fs_backend_file_seek(fs_proxy_get_backend(fs_file_get_fs(pFile)),
                               pFile, offset, origin);
 }
 
-static fs_result fs_file_tell_proxy(fs_file *pFile, fs_int64 *pCursor) {
+static fs_result fs_file_tell_proxy(fs_file* pFile, fs_int64* pCursor) {
   return fs_backend_file_tell(fs_proxy_get_backend(fs_file_get_fs(pFile)),
                               pFile, pCursor);
 }
 
-static fs_result fs_file_flush_proxy(fs_file *pFile) {
+static fs_result fs_file_flush_proxy(fs_file* pFile) {
   return fs_backend_file_flush(fs_proxy_get_backend(fs_file_get_fs(pFile)),
                                pFile);
 }
 
-static fs_result fs_file_info_proxy(fs_file *pFile, fs_file_info *pInfo) {
+static fs_result fs_file_info_proxy(fs_file* pFile, fs_file_info* pInfo) {
   return fs_backend_file_info(fs_proxy_get_backend(fs_file_get_fs(pFile)),
                               pFile, pInfo);
 }
 
-static fs_result fs_file_duplicate_proxy(fs_file *pFile,
-                                         fs_file *pDuplicatedFile) {
+static fs_result fs_file_duplicate_proxy(fs_file* pFile,
+                                         fs_file* pDuplicatedFile) {
   fs_result result;
-  fs *pFS;
+  fs* pFS;
 
   pFS = fs_file_get_fs(pFile);
 
@@ -1386,7 +1547,7 @@ static fs_result fs_file_duplicate_proxy(fs_file *pFile,
 
   /* Increment the reference count of the opened archive if necessary. */
   if (fs_file_proxy_get_unref_archive_on_close(pFile)) {
-    fs *pOwnerFS;
+    fs* pOwnerFS;
 
     fs_file_proxy_set_unref_archive_on_close(pDuplicatedFile, FS_TRUE);
 
@@ -1399,17 +1560,18 @@ static fs_result fs_file_duplicate_proxy(fs_file *pFile,
   return FS_SUCCESS;
 }
 
-static fs_iterator *fs_first_proxy(fs *pFS, const char *pDirectoryPath,
+static fs_iterator* fs_first_proxy(fs* pFS,
+                                   const char* pDirectoryPath,
                                    size_t directoryPathLen) {
   return fs_backend_first(fs_proxy_get_backend(pFS), pFS, pDirectoryPath,
                           directoryPathLen);
 }
 
-static fs_iterator *fs_next_proxy(fs_iterator *pIterator) {
+static fs_iterator* fs_next_proxy(fs_iterator* pIterator) {
   return fs_backend_next(fs_proxy_get_backend(pIterator->pFS), pIterator);
 }
 
-static void fs_free_iterator_proxy(fs_iterator *pIterator) {
+static void fs_free_iterator_proxy(fs_iterator* pIterator) {
   fs_backend_free_iterator(fs_proxy_get_backend(pIterator->pFS), pIterator);
 }
 
@@ -1435,13 +1597,19 @@ static fs_backend fs_proxy_backend = {fs_alloc_size_proxy,
                                       fs_first_proxy,
                                       fs_next_proxy,
                                       fs_free_iterator_proxy};
-const fs_backend *FS_PROXY = &fs_proxy_backend;
-/* END fs_proxy.c */
+const fs_backend* FS_PROXY = &fs_proxy_backend;
 
-/* BEG fs.c */
-#define FS_IS_OPAQUE(mode) ((mode & FS_OPAQUE) != 0)
-#define FS_IS_VERBOSE(mode) ((mode & FS_VERBOSE) != 0)
-#define FS_IS_TRANSPARENT(mode) ((mode & (FS_OPAQUE | FS_VERBOSE)) == 0)
+/*
+This is the maximum number of ureferenced opened archive files that will be kept
+in memory before garbage collection of those archives is triggered.
+*/
+#ifndef FS_DEFAULT_ARCHIVE_GC_THRESHOLD
+#define FS_DEFAULT_ARCHIVE_GC_THRESHOLD 10
+#endif
+
+#define FS_IS_OPAQUE(mode) ((mode & FS_OPAQUE) != FS_OPAQUE)
+#define FS_IS_VERBOSE(mode) ((mode & FS_VERBOSE) != FS_VERBOSE)
+#define FS_IS_TRANSPARENT(mode) (!FS_IS_OPAQUE(mode) && !FS_IS_VERBOSE(mode))
 
 FS_API fs_config fs_config_init_default(void) {
   fs_config config;
@@ -1451,8 +1619,9 @@ FS_API fs_config fs_config_init_default(void) {
   return config;
 }
 
-FS_API fs_config fs_config_init(const fs_backend *pBackend,
-                                void *pBackendConfig, fs_stream *pStream) {
+FS_API fs_config fs_config_init(const fs_backend* pBackend,
+                                void* pBackendConfig,
+                                fs_stream* pStream) {
   fs_config config = fs_config_init_default();
   config.pBackend = pBackend;
   config.pBackendConfig = pBackendConfig;
@@ -1462,7 +1631,7 @@ FS_API fs_config fs_config_init(const fs_backend *pBackend,
 }
 
 typedef struct fs_opened_archive {
-  fs *pArchive;
+  fs* pArchive;
   size_t refCount;
   char pPath[1];
 } fs_opened_archive;
@@ -1475,7 +1644,7 @@ typedef struct fs_mount_point {
       mountPointOff; /* Points to a null terminated string containing the mount
                         point starting from the first byte after this struct. */
   size_t mountPointLen;
-  fs *pArchive; /* Can be null in which case the mounted path is a directory. */
+  fs* pArchive; /* Can be null in which case the mounted path is a directory. */
   fs_bool32
       closeArchiveOnUnmount; /* If set to true, the archive FS will be closed
                                 when the mount point is unmounted. */
@@ -1485,10 +1654,10 @@ typedef struct fs_mount_point {
 typedef struct fs_mount_list fs_mount_list;
 
 struct fs {
-  const fs_backend *pBackend;
-  fs_stream *pStream;
+  const fs_backend* pBackend;
+  fs_stream* pStream;
   fs_allocation_callbacks allocationCallbacks;
-  void *pArchiveTypes; /* One heap allocation containing all extension
+  void* pArchiveTypes; /* One heap allocation containing all extension
                           registrations. Needs to be parsed in order to
                           enumerate them. Structure is [const
                           fs_backend*][extension][null-terminator][padding
@@ -1498,78 +1667,85 @@ struct fs {
   size_t backendDataSize;
   fs_mtx
       archiveLock; /* For use with fs_open_archive() and fs_close_archive(). */
-  void *pOpenedArchives; /* One heap allocation. Structure is [fs*][refcount
+  void* pOpenedArchives; /* One heap allocation. Structure is [fs*][refcount
                             (size_t)][path][null-terminator][padding (aligned to
                             FS_SIZEOF_PTR)] */
   size_t openedArchivesSize;
   size_t openedArchivesCap;
   size_t archiveGCThreshold;
-  fs_mount_list *pReadMountPoints;
-  fs_mount_list *pWriteMountPoints;
+  fs_mount_list* pReadMountPoints;
+  fs_mount_list* pWriteMountPoints;
 };
 
 typedef struct fs_file {
   fs_stream stream; /* Files are streams. This must be the first member so it
                        can be cast. */
-  fs *pFS;
-  fs_stream
-      *pStreamForBackend; /* The stream for use by the backend. Different to
-                             `stream`. This is a duplicate of the stream used by
-                             `pFS` so the backend can do reading. */
+  fs* pFS;
+  fs_stream*
+      pStreamForBackend; /* The stream for use by the backend. Different to
+                            `stream`. This is a duplicate of the stream used by
+                            `pFS` so the backend can do reading. */
   size_t backendDataSize;
 } fs_file;
 
-static void
-fs_gc_archives_nolock(fs *pFS,
-                      int policy); /* Defined further down in the file. */
+typedef enum fs_mount_priority {
+  FS_MOUNT_PRIORITY_HIGHEST = 0,
+  FS_MOUNT_PRIORITY_LOWEST = 1
+} fs_mount_priority;
+
+static void fs_gc_archives_nolock(
+    fs* pFS,
+    int policy); /* Defined further down in the file. */
 
 static size_t fs_mount_point_size(size_t pathLen, size_t mountPointLen) {
   return FS_ALIGN(sizeof(fs_mount_point) + pathLen + 1 + mountPointLen + 1,
                   FS_SIZEOF_PTR);
 }
 
-static size_t fs_mount_list_get_header_size(void) { return sizeof(size_t) * 2; }
+static size_t fs_mount_list_get_header_size(void) {
+  return sizeof(size_t) * 2;
+}
 
-static size_t fs_mount_list_get_alloc_size(const fs_mount_list *pList) {
+static size_t fs_mount_list_get_alloc_size(const fs_mount_list* pList) {
   if (pList == NULL) {
     return 0;
   }
 
-  return *(size_t *)FS_OFFSET_PTR(pList, 0);
+  return *(size_t*)FS_OFFSET_PTR(pList, 0);
 }
 
-static size_t fs_mount_list_get_alloc_cap(const fs_mount_list *pList) {
+static size_t fs_mount_list_get_alloc_cap(const fs_mount_list* pList) {
   if (pList == NULL) {
     return 0;
   }
 
-  return *(size_t *)FS_OFFSET_PTR(pList, 1 * sizeof(size_t));
+  return *(size_t*)FS_OFFSET_PTR(pList, 1 * sizeof(size_t));
 }
 
-static void fs_mount_list_set_alloc_size(fs_mount_list *pList, size_t newSize) {
+static void fs_mount_list_set_alloc_size(fs_mount_list* pList, size_t newSize) {
   FS_ASSERT(pList != NULL);
-  *(size_t *)FS_OFFSET_PTR(pList, 0) = newSize;
+  *(size_t*)FS_OFFSET_PTR(pList, 0) = newSize;
 }
 
-static void fs_mount_list_set_alloc_cap(fs_mount_list *pList, size_t newCap) {
+static void fs_mount_list_set_alloc_cap(fs_mount_list* pList, size_t newCap) {
   FS_ASSERT(pList != NULL);
-  *(size_t *)FS_OFFSET_PTR(pList, 1 * sizeof(size_t)) = newCap;
+  *(size_t*)FS_OFFSET_PTR(pList, 1 * sizeof(size_t)) = newCap;
 }
 
 typedef struct fs_mount_list_iterator {
-  const char *pPath;
-  const char *pMountPointPath;
-  fs *pArchive; /* Can be null. */
+  const char* pPath;
+  const char* pMountPointPath;
+  fs* pArchive; /* Can be null. */
   struct {
-    fs_mount_list *pList;
-    fs_mount_point *pMountPoint;
+    fs_mount_list* pList;
+    fs_mount_point* pMountPoint;
     size_t cursor;
   } internal;
 } fs_mount_list_iterator;
 
-static fs_result
-fs_mount_list_iterator_resolve_members(fs_mount_list_iterator *pIterator,
-                                       size_t cursor) {
+static fs_result fs_mount_list_iterator_resolve_members(
+    fs_mount_list_iterator* pIterator,
+    size_t cursor) {
   FS_ASSERT(pIterator != NULL);
 
   if (cursor >= fs_mount_list_get_alloc_size(pIterator->internal.pList)) {
@@ -1577,16 +1753,16 @@ fs_mount_list_iterator_resolve_members(fs_mount_list_iterator *pIterator,
   }
 
   pIterator->internal.cursor = cursor;
-  pIterator->internal.pMountPoint = (fs_mount_point *)FS_OFFSET_PTR(
+  pIterator->internal.pMountPoint = (fs_mount_point*)FS_OFFSET_PTR(
       pIterator->internal.pList,
       fs_mount_list_get_header_size() + pIterator->internal.cursor);
   FS_ASSERT(pIterator->internal.pMountPoint != NULL);
 
   /* The content of the paths are stored at the end of the structure. */
-  pIterator->pPath = (const char *)FS_OFFSET_PTR(
+  pIterator->pPath = (const char*)FS_OFFSET_PTR(
       pIterator->internal.pMountPoint,
       sizeof(fs_mount_point) + pIterator->internal.pMountPoint->pathOff);
-  pIterator->pMountPointPath = (const char *)FS_OFFSET_PTR(
+  pIterator->pMountPointPath = (const char*)FS_OFFSET_PTR(
       pIterator->internal.pMountPoint,
       sizeof(fs_mount_point) + pIterator->internal.pMountPoint->mountPointOff);
   pIterator->pArchive = pIterator->internal.pMountPoint->pArchive;
@@ -1594,8 +1770,15 @@ fs_mount_list_iterator_resolve_members(fs_mount_list_iterator *pIterator,
   return FS_SUCCESS;
 }
 
-static fs_result fs_mount_list_first(fs_mount_list *pList,
-                                     fs_mount_list_iterator *pIterator) {
+static fs_bool32 fs_mount_list_at_end(const fs_mount_list_iterator* pIterator) {
+  FS_ASSERT(pIterator != NULL);
+
+  return (pIterator->internal.cursor >=
+          fs_mount_list_get_alloc_size(pIterator->internal.pList));
+}
+
+static fs_result fs_mount_list_first(fs_mount_list* pList,
+                                     fs_mount_list_iterator* pIterator) {
   FS_ASSERT(pIterator != NULL);
 
   FS_ZERO_OBJECT(pIterator);
@@ -1608,15 +1791,14 @@ static fs_result fs_mount_list_first(fs_mount_list *pList,
   return fs_mount_list_iterator_resolve_members(pIterator, 0);
 }
 
-static fs_result fs_mount_list_next(fs_mount_list_iterator *pIterator) {
+static fs_result fs_mount_list_next(fs_mount_list_iterator* pIterator) {
   size_t newCursor;
 
   FS_ASSERT(pIterator != NULL);
 
-  /* For a bit of safety, lets go ahead and check if the cursor is already at
-   * the end and if so just abort early. */
-  if (pIterator->internal.cursor >=
-      fs_mount_list_get_alloc_size(pIterator->internal.pList)) {
+  /* We can't continue if the list is at the end or else we'll overrun the
+   * cursor. */
+  if (fs_mount_list_at_end(pIterator)) {
     return FS_AT_END;
   }
 
@@ -1635,12 +1817,14 @@ static fs_result fs_mount_list_next(fs_mount_list_iterator *pIterator) {
   return fs_mount_list_iterator_resolve_members(pIterator, newCursor);
 }
 
-static fs_mount_list *
-fs_mount_list_alloc(fs_mount_list *pList, const char *pPathToMount,
-                    const char *pMountPoint, fs_mount_priority priority,
-                    const fs_allocation_callbacks *pAllocationCallbacks,
-                    fs_mount_point **ppMountPoint) {
-  fs_mount_point *pNewMountPoint = NULL;
+static fs_mount_list* fs_mount_list_alloc(
+    fs_mount_list* pList,
+    const char* pPathToMount,
+    const char* pMountPoint,
+    fs_mount_priority priority,
+    const fs_allocation_callbacks* pAllocationCallbacks,
+    fs_mount_point** ppMountPoint) {
+  fs_mount_point* pNewMountPoint = NULL;
   size_t pathToMountLen;
   size_t mountPointLen;
   size_t mountPointAllocSize;
@@ -1655,14 +1839,14 @@ fs_mount_list_alloc(fs_mount_list *pList, const char *pPathToMount,
   if (fs_mount_list_get_alloc_cap(pList) <
       fs_mount_list_get_alloc_size(pList) + mountPointAllocSize) {
     size_t newCap;
-    fs_mount_list *pNewList;
+    fs_mount_list* pNewList;
 
     newCap = fs_mount_list_get_alloc_cap(pList) * 2;
     if (newCap < fs_mount_list_get_alloc_size(pList) + mountPointAllocSize) {
       newCap = fs_mount_list_get_alloc_size(pList) + mountPointAllocSize;
     }
 
-    pNewList = (fs_mount_list *)fs_realloc(
+    pNewList = (fs_mount_list*)fs_realloc(
         pList, fs_mount_list_get_header_size() + newCap,
         pAllocationCallbacks); /* Need room for leading size and cap variables.
                                 */
@@ -1676,7 +1860,7 @@ fs_mount_list_alloc(fs_mount_list *pList, const char *pPathToMount,
       FS_ZERO_MEMORY(pNewList, fs_mount_list_get_header_size());
     }
 
-    pList = (fs_mount_list *)pNewList;
+    pList = (fs_mount_list*)pNewList;
     fs_mount_list_set_alloc_cap(pList, newCap);
   }
 
@@ -1687,7 +1871,7 @@ fs_mount_list_alloc(fs_mount_list *pList, const char *pPathToMount,
   */
   if (priority == FS_MOUNT_PRIORITY_LOWEST) {
     /* The new entry goes to the end of the list. */
-    pNewMountPoint = (fs_mount_point *)FS_OFFSET_PTR(
+    pNewMountPoint = (fs_mount_point*)FS_OFFSET_PTR(
         pList,
         fs_mount_list_get_header_size() + fs_mount_list_get_alloc_size(pList));
   } else if (priority == FS_MOUNT_PRIORITY_HIGHEST) {
@@ -1698,14 +1882,14 @@ fs_mount_list_alloc(fs_mount_list *pList, const char *pPathToMount,
                    FS_OFFSET_PTR(pList, fs_mount_list_get_header_size()),
                    fs_mount_list_get_alloc_size(pList));
     pNewMountPoint =
-        (fs_mount_point *)FS_OFFSET_PTR(pList, fs_mount_list_get_header_size());
+        (fs_mount_point*)FS_OFFSET_PTR(pList, fs_mount_list_get_header_size());
   } else {
     FS_ASSERT(!"Unknown mount priority.");
     return NULL;
   }
 
-  fs_mount_list_set_alloc_size(pList, fs_mount_list_get_alloc_size(pList) +
-                                          mountPointAllocSize);
+  fs_mount_list_set_alloc_size(
+      pList, fs_mount_list_get_alloc_size(pList) + mountPointAllocSize);
 
   /* Now we can fill out the details of the new mount point. */
   pNewMountPoint->pathOff =
@@ -1727,8 +1911,8 @@ fs_mount_list_alloc(fs_mount_list *pList, const char *pPathToMount,
   return pList;
 }
 
-static fs_result fs_mount_list_remove(fs_mount_list *pList,
-                                      fs_mount_point *pMountPoint) {
+static fs_result fs_mount_list_remove(fs_mount_list* pList,
+                                      fs_mount_point* pMountPoint) {
   size_t mountPointAllocSize =
       fs_mount_point_size(pMountPoint->pathLen, pMountPoint->mountPointLen);
   size_t newMountPointsAllocSize =
@@ -1748,7 +1932,7 @@ static fs_result fs_mount_list_remove(fs_mount_list *pList,
   return FS_SUCCESS;
 }
 
-static const fs_backend *fs_get_backend_or_default(const fs *pFS) {
+static const fs_backend* fs_get_backend_or_default(const fs* pFS) {
   if (pFS == NULL) {
     return FS_STDIO;
   } else {
@@ -1757,23 +1941,25 @@ static const fs_backend *fs_get_backend_or_default(const fs *pFS) {
 }
 
 typedef struct fs_registered_backend_iterator {
-  const fs *pFS;
+  const fs* pFS;
   size_t cursor;
-  const fs_backend *pBackend;
-  void *pBackendConfig;
-  const char *pExtension;
+  const fs_backend* pBackend;
+  void* pBackendConfig;
+  const char* pExtension;
   size_t extensionLen;
 } fs_registered_backend_iterator;
 
-FS_API fs_result fs_file_open_or_info(fs *pFS, const char *pFilePath,
-                                      int openMode, fs_file **ppFile,
-                                      fs_file_info *pInfo);
-static fs_result
-fs_next_registered_backend(fs_registered_backend_iterator *pIterator);
+FS_API fs_result fs_file_open_or_info(fs* pFS,
+                                      const char* pFilePath,
+                                      int openMode,
+                                      fs_file** ppFile,
+                                      fs_file_info* pInfo);
+static fs_result fs_next_registered_backend(
+    fs_registered_backend_iterator* pIterator);
 
-static fs_result
-fs_first_registered_backend(fs *pFS,
-                            fs_registered_backend_iterator *pIterator) {
+static fs_result fs_first_registered_backend(
+    fs* pFS,
+    fs_registered_backend_iterator* pIterator) {
   FS_ASSERT(pFS != NULL);
   FS_ASSERT(pIterator != NULL);
 
@@ -1783,32 +1969,32 @@ fs_first_registered_backend(fs *pFS,
   return fs_next_registered_backend(pIterator);
 }
 
-static fs_result
-fs_next_registered_backend(fs_registered_backend_iterator *pIterator) {
+static fs_result fs_next_registered_backend(
+    fs_registered_backend_iterator* pIterator) {
   FS_ASSERT(pIterator != NULL);
 
   if (pIterator->cursor >= pIterator->pFS->archiveTypesAllocSize) {
     return FS_AT_END;
   }
 
-  pIterator->pBackend = *(const fs_backend **)FS_OFFSET_PTR(
+  pIterator->pBackend = *(const fs_backend**)FS_OFFSET_PTR(
       pIterator->pFS->pArchiveTypes, pIterator->cursor);
   pIterator->pBackendConfig =
       NULL; /* <-- I'm not sure how to deal with backend configs with this API.
                Putting this member in the iterator in case I want to support
                this later. */
-  pIterator->pExtension = (const char *)FS_OFFSET_PTR(
-      pIterator->pFS->pArchiveTypes, pIterator->cursor + sizeof(fs_backend *));
+  pIterator->pExtension = (const char*)FS_OFFSET_PTR(
+      pIterator->pFS->pArchiveTypes, pIterator->cursor + sizeof(fs_backend*));
   pIterator->extensionLen = strlen(pIterator->pExtension);
 
   pIterator->cursor += FS_ALIGN(
-      sizeof(fs_backend *) + pIterator->extensionLen + 1, FS_SIZEOF_PTR);
+      sizeof(fs_backend*) + pIterator->extensionLen + 1, FS_SIZEOF_PTR);
 
   return FS_SUCCESS;
 }
 
-static fs_opened_archive *fs_find_opened_archive(fs *pFS,
-                                                 const char *pArchivePath,
+static fs_opened_archive* fs_find_opened_archive(fs* pFS,
+                                                 const char* pArchivePath,
                                                  size_t archivePathLen) {
   size_t cursor;
 
@@ -1821,24 +2007,24 @@ static fs_opened_archive *fs_find_opened_archive(fs *pFS,
 
   cursor = 0;
   while (cursor < pFS->openedArchivesSize) {
-    fs_opened_archive *pOpenedArchive =
-        (fs_opened_archive *)FS_OFFSET_PTR(pFS->pOpenedArchives, cursor);
+    fs_opened_archive* pOpenedArchive =
+        (fs_opened_archive*)FS_OFFSET_PTR(pFS->pOpenedArchives, cursor);
 
     if (fs_strncmp(pOpenedArchive->pPath, pArchivePath, archivePathLen) == 0) {
       return pOpenedArchive;
     }
 
     /* Getting here means this archive is not the one we're looking for. */
-    cursor += FS_ALIGN(sizeof(fs *) + sizeof(size_t) +
-                           strlen(pOpenedArchive->pPath) + 1,
-                       FS_SIZEOF_PTR);
+    cursor += FS_ALIGN(
+        sizeof(fs*) + sizeof(size_t) + strlen(pOpenedArchive->pPath) + 1,
+        FS_SIZEOF_PTR);
   }
 
   /* If we get here it means we couldn't find the archive by it's name. */
   return NULL;
 }
 
-static fs_opened_archive *fs_find_opened_archive_by_fs(fs *pFS, fs *pArchive) {
+static fs_opened_archive* fs_find_opened_archive_by_fs(fs* pFS, fs* pArchive) {
   size_t cursor;
 
   if (pFS == NULL) {
@@ -1849,28 +2035,29 @@ static fs_opened_archive *fs_find_opened_archive_by_fs(fs *pFS, fs *pArchive) {
 
   cursor = 0;
   while (cursor < pFS->openedArchivesSize) {
-    fs_opened_archive *pOpenedArchive =
-        (fs_opened_archive *)FS_OFFSET_PTR(pFS->pOpenedArchives, cursor);
+    fs_opened_archive* pOpenedArchive =
+        (fs_opened_archive*)FS_OFFSET_PTR(pFS->pOpenedArchives, cursor);
 
     if (pOpenedArchive->pArchive == pArchive) {
       return pOpenedArchive;
     }
 
     /* Getting here means this archive is not the one we're looking for. */
-    cursor += FS_ALIGN(sizeof(fs *) + sizeof(size_t) +
-                           strlen(pOpenedArchive->pPath) + 1,
-                       FS_SIZEOF_PTR);
+    cursor += FS_ALIGN(
+        sizeof(fs*) + sizeof(size_t) + strlen(pOpenedArchive->pPath) + 1,
+        FS_SIZEOF_PTR);
   }
 
   /* If we get here it means we couldn't find the archive. */
   return NULL;
 }
 
-static fs_result fs_add_opened_archive(fs *pFS, fs *pArchive,
-                                       const char *pArchivePath,
+static fs_result fs_add_opened_archive(fs* pFS,
+                                       fs* pArchive,
+                                       const char* pArchivePath,
                                        size_t archivePathLen) {
   size_t openedArchiveSize;
-  fs_opened_archive *pOpenedArchive;
+  fs_opened_archive* pOpenedArchive;
 
   FS_ASSERT(pFS != NULL);
   FS_ASSERT(pArchive != NULL);
@@ -1881,11 +2068,11 @@ static fs_result fs_add_opened_archive(fs *pFS, fs *pArchive,
   }
 
   openedArchiveSize = FS_ALIGN(
-      sizeof(fs *) + sizeof(size_t) + archivePathLen + 1, FS_SIZEOF_PTR);
+      sizeof(fs*) + sizeof(size_t) + archivePathLen + 1, FS_SIZEOF_PTR);
 
   if (pFS->openedArchivesSize + openedArchiveSize > pFS->openedArchivesCap) {
     size_t newOpenedArchivesCap;
-    void *pNewOpenedArchives;
+    void* pNewOpenedArchives;
 
     newOpenedArchivesCap = pFS->openedArchivesCap * 2;
     if (newOpenedArchivesCap < pFS->openedArchivesSize + openedArchiveSize) {
@@ -1907,8 +2094,8 @@ static fs_result fs_add_opened_archive(fs *pFS, fs *pArchive,
   FS_ASSERT(pFS->openedArchivesSize + openedArchiveSize <=
             pFS->openedArchivesCap);
 
-  pOpenedArchive = (fs_opened_archive *)FS_OFFSET_PTR(pFS->pOpenedArchives,
-                                                      pFS->openedArchivesSize);
+  pOpenedArchive = (fs_opened_archive*)FS_OFFSET_PTR(pFS->pOpenedArchives,
+                                                     pFS->openedArchivesSize);
   pOpenedArchive->pArchive = pArchive;
   pOpenedArchive->refCount = 0;
   fs_strncpy(pOpenedArchive->pPath, pArchivePath, archivePathLen);
@@ -1918,13 +2105,13 @@ static fs_result fs_add_opened_archive(fs *pFS, fs *pArchive,
   return FS_SUCCESS;
 }
 
-static fs_result fs_remove_opened_archive(fs *pFS,
-                                          fs_opened_archive *pOpenedArchive) {
+static fs_result fs_remove_opened_archive(fs* pFS,
+                                          fs_opened_archive* pOpenedArchive) {
   /* This is a simple matter of doing a memmove() to move memory down.
    * pOpenedArchive should be an offset of pFS->pOpenedArchives. */
   size_t openedArchiveSize;
 
-  openedArchiveSize = FS_ALIGN(sizeof(fs_opened_archive *) + sizeof(size_t) +
+  openedArchiveSize = FS_ALIGN(sizeof(fs_opened_archive*) + sizeof(size_t) +
                                    strlen(pOpenedArchive->pPath) + 1,
                                FS_SIZEOF_PTR);
 
@@ -1942,8 +2129,8 @@ static fs_result fs_remove_opened_archive(fs *pFS,
   return FS_SUCCESS;
 }
 
-static size_t fs_increment_opened_archive_ref_count(fs *pFS, fs *pArchive) {
-  fs_opened_archive *pOpenedArchive =
+static size_t fs_increment_opened_archive_ref_count(fs* pFS, fs* pArchive) {
+  fs_opened_archive* pOpenedArchive =
       fs_find_opened_archive_by_fs(pFS, pArchive);
   if (pOpenedArchive != NULL) {
     pOpenedArchive->refCount += 1;
@@ -1960,8 +2147,8 @@ static size_t fs_increment_opened_archive_ref_count(fs *pFS, fs *pArchive) {
   return 0;
 }
 
-static size_t fs_decrement_opened_archive_ref_count(fs *pFS, fs *pArchive) {
-  fs_opened_archive *pOpenedArchive =
+static size_t fs_decrement_opened_archive_ref_count(fs* pFS, fs* pArchive) {
+  fs_opened_archive* pOpenedArchive =
       fs_find_opened_archive_by_fs(pFS, pArchive);
   if (pOpenedArchive != NULL) {
     FS_ASSERT(pOpenedArchive->refCount >
@@ -1981,16 +2168,70 @@ static size_t fs_decrement_opened_archive_ref_count(fs *pFS, fs *pArchive) {
   return 0;
 }
 
-static size_t fs_archive_type_sizeof(const fs_archive_type *pArchiveType) {
-  return FS_ALIGN(sizeof(pArchiveType->pBackend) +
-                      strlen(pArchiveType->pExtension) + 1,
-                  FS_SIZEOF_PTR);
+static size_t fs_archive_type_sizeof(const fs_archive_type* pArchiveType) {
+  return FS_ALIGN(
+      sizeof(pArchiveType->pBackend) + strlen(pArchiveType->pExtension) + 1,
+      FS_SIZEOF_PTR);
 }
 
-FS_API fs_result fs_init(const fs_config *pConfig, fs **ppFS) {
-  fs *pFS;
+static fs_mount_point* fs_find_best_write_mount_point(
+    fs* pFS,
+    const char* pPath,
+    const char** ppMountPointPath,
+    const char** ppSubPath) {
+  /*
+  This is a bit different from read mounts because we want to use the mount
+  point that most closely matches the start of the file path. Consider, for
+  example, the following mount points:
+
+      - config
+      - config/global
+
+  If we're trying to open "config/global/settings.cfg" we want to use the
+  "config/global" mount point, not the "config" mount point. This is because the
+  "config/global" mount point is more specific and therefore more likely to be
+  the correct one.
+
+  We'll need to iterate over every mount point and keep track of the mount point
+  with the longest prefix that matches the start of the file path.
+  */
+  fs_result result;
+  fs_mount_list_iterator iMountPoint;
+  fs_mount_point* pBestMountPoint = NULL;
+  const char* pBestMountPointPath = NULL;
+  const char* pBestMountPointFileSubPath = NULL;
+
+  for (result = fs_mount_list_first(pFS->pWriteMountPoints, &iMountPoint);
+       result == FS_SUCCESS; result = fs_mount_list_next(&iMountPoint)) {
+    const char* pFileSubPath =
+        fs_path_trim_base(pPath, FS_NULL_TERMINATED,
+                          iMountPoint.pMountPointPath, FS_NULL_TERMINATED);
+    if (pFileSubPath == NULL) {
+      continue; /* The file path doesn't start with this mount point so skip. */
+    }
+
+    if (pBestMountPointFileSubPath == NULL ||
+        strlen(pFileSubPath) < strlen(pBestMountPointFileSubPath)) {
+      pBestMountPoint = iMountPoint.internal.pMountPoint;
+      pBestMountPointPath = iMountPoint.pPath;
+      pBestMountPointFileSubPath = pFileSubPath;
+    }
+  }
+
+  if (ppMountPointPath != NULL) {
+    *ppMountPointPath = pBestMountPointPath;
+  }
+  if (ppSubPath != NULL) {
+    *ppSubPath = pBestMountPointFileSubPath;
+  }
+
+  return pBestMountPoint;
+}
+
+FS_API fs_result fs_init(const fs_config* pConfig, fs** ppFS) {
+  fs* pFS;
   fs_config defaultConfig;
-  const fs_backend *pBackend = NULL;
+  const fs_backend* pBackend = NULL;
   size_t backendDataSizeInBytes = 0;
   fs_int64 initialStreamCursor = -1;
   size_t archiveTypesAllocSize = 0;
@@ -2032,9 +2273,9 @@ FS_API fs_result fs_init(const fs_config *pConfig, fs **ppFS) {
         fs_archive_type_sizeof(&pConfig->pArchiveTypes[iArchiveType]);
   }
 
-  pFS = (fs *)fs_calloc(sizeof(fs) + archiveTypesAllocSize +
-                            backendDataSizeInBytes,
-                        pConfig->pAllocationCallbacks);
+  pFS = (fs*)fs_calloc(
+      sizeof(fs) + archiveTypesAllocSize + backendDataSizeInBytes,
+      pConfig->pAllocationCallbacks);
   if (pFS == NULL) {
     return FS_OUT_OF_MEMORY;
   }
@@ -2051,7 +2292,7 @@ FS_API fs_result fs_init(const fs_config *pConfig, fs **ppFS) {
   pFS->isOwnerOfArchiveTypes = FS_TRUE;
   pFS->archiveGCThreshold = FS_DEFAULT_ARCHIVE_GC_THRESHOLD;
   pFS->archiveTypesAllocSize = archiveTypesAllocSize;
-  pFS->pArchiveTypes = (void *)FS_OFFSET_PTR(pFS, sizeof(fs));
+  pFS->pArchiveTypes = (void*)FS_OFFSET_PTR(pFS, sizeof(fs));
 
   /* Archive types. */
   if (pConfig->archiveTypeCount > 0) {
@@ -2064,9 +2305,9 @@ FS_API fs_result fs_init(const fs_config *pConfig, fs **ppFS) {
 
       FS_COPY_MEMORY(FS_OFFSET_PTR(pFS->pArchiveTypes, cursor),
                      &pConfig->pArchiveTypes[iArchiveType].pBackend,
-                     sizeof(fs_backend *));
+                     sizeof(fs_backend*));
       FS_COPY_MEMORY(
-          FS_OFFSET_PTR(pFS->pArchiveTypes, cursor + sizeof(fs_backend *)),
+          FS_OFFSET_PTR(pFS->pArchiveTypes, cursor + sizeof(fs_backend*)),
           pConfig->pArchiveTypes[iArchiveType].pExtension, extensionLength + 1);
 
       cursor += fs_archive_type_sizeof(&pConfig->pArchiveTypes[iArchiveType]);
@@ -2123,7 +2364,7 @@ FS_API fs_result fs_init(const fs_config *pConfig, fs **ppFS) {
   return FS_SUCCESS;
 }
 
-FS_API void fs_uninit(fs *pFS) {
+FS_API void fs_uninit(fs* pFS) {
   if (pFS == NULL) {
     return;
   }
@@ -2138,18 +2379,10 @@ FS_API void fs_uninit(fs *pFS) {
   fs_gc_archives(pFS, FS_GC_POLICY_FULL);
 
 /* The caller has a bug if there are still outstanding archives. */
-#if !defined(FS_NO_OPENED_FILES_ASSERT)
+#if !defined(FS_ENABLE_OPENED_FILES_ASSERT)
   {
     if (pFS->openedArchivesSize > 0) {
-      FS_ASSERT(
-          !"You have outstanding opened files. You must close all files before "
-           "uninitializing the fs object."); /* <-- If you hit this assert but
-                                                you're absolutely sure you've
-                                                closed all your files, please
-                                                submit a bug report with a
-                                                reproducible test case. Define
-                                                `FS_NO_OPENED_FILES_ASSERT` to
-                                                workaround the assert. */
+      FS_ASSERT(!"You have outstanding opened files. You must close all files before uninitializing the fs object.");    /* <-- If you hit this assert but you're absolutely sure you've closed all your files, please submit a bug report with a reproducible test case. */
     }
   }
 #endif
@@ -2172,7 +2405,7 @@ FS_API void fs_uninit(fs *pFS) {
   fs_free(pFS, &pFS->allocationCallbacks);
 }
 
-FS_API fs_result fs_ioctl(fs *pFS, int request, void *pArg) {
+FS_API fs_result fs_ioctl(fs* pFS, int request, void* pArg) {
   if (pFS == NULL) {
     return FS_INVALID_ARGS;
   }
@@ -2180,7 +2413,7 @@ FS_API fs_result fs_ioctl(fs *pFS, int request, void *pArg) {
   return fs_backend_ioctl(pFS->pBackend, pFS, request, pArg);
 }
 
-FS_API fs_result fs_remove(fs *pFS, const char *pFilePath) {
+FS_API fs_result fs_remove(fs* pFS, const char* pFilePath) {
   if (pFS == NULL || pFilePath == NULL) {
     return FS_INVALID_ARGS;
   }
@@ -2188,8 +2421,9 @@ FS_API fs_result fs_remove(fs *pFS, const char *pFilePath) {
   return fs_backend_remove(pFS->pBackend, pFS, pFilePath);
 }
 
-FS_API fs_result fs_rename(fs *pFS, const char *pOldName,
-                           const char *pNewName) {
+FS_API fs_result fs_rename(fs* pFS,
+                           const char* pOldName,
+                           const char* pNewName) {
   if (pFS == NULL || pOldName == NULL || pNewName == NULL) {
     return FS_INVALID_ARGS;
   }
@@ -2197,13 +2431,16 @@ FS_API fs_result fs_rename(fs *pFS, const char *pOldName,
   return fs_backend_rename(pFS->pBackend, pFS, pOldName, pNewName);
 }
 
-FS_API fs_result fs_mkdir(fs *pFS, const char *pPath) {
+FS_API fs_result fs_mkdir(fs* pFS, const char* pPath, int options) {
   char pRunningPathStack[1024];
-  char *pRunningPathHeap = NULL;
-  char *pRunningPath = pRunningPathStack;
+  char* pRunningPathHeap = NULL;
+  char* pRunningPath = pRunningPathStack;
   size_t runningPathLen = 0;
   fs_path_iterator iSegment;
-  const fs_backend *pBackend;
+  const fs_backend* pBackend;
+  fs_mount_point* pMountPoint = NULL;
+  const char* pMountPointPath = NULL;
+  const char* pMountPointSubPath = NULL;
 
   pBackend = fs_get_backend_or_default(pFS);
 
@@ -2215,21 +2452,64 @@ FS_API fs_result fs_mkdir(fs *pFS, const char *pPath) {
     return FS_INVALID_ARGS;
   }
 
+  /* If we're using the default file system, ignore mount points since there's
+   * no real notion of them. */
+  if (pFS == NULL) {
+    options |= FS_IGNORE_MOUNTS;
+  }
+
+  /* If we're using mount points we'll want to find the best one from our input
+   * path. */
+  if ((options & FS_IGNORE_MOUNTS) != 0) {
+    pMountPoint = NULL;
+    pMountPointPath = "";
+    pMountPointSubPath = pPath;
+  } else {
+    pMountPoint = fs_find_best_write_mount_point(pFS, pPath, &pMountPointPath,
+                                                 &pMountPointSubPath);
+    if (pMountPoint == NULL) {
+      return FS_INVALID_FILE; /* Couldn't find a mount point. */
+    }
+  }
+
   /* We need to iterate over each segment and create the directory. If any of
    * these fail we'll need to abort. */
-  if (fs_path_first(pPath, FS_NULL_TERMINATED, &iSegment) != FS_SUCCESS) {
+  if (fs_path_first(pMountPointSubPath, FS_NULL_TERMINATED, &iSegment) !=
+      FS_SUCCESS) {
     return FS_SUCCESS; /* It's an empty path. */
+  }
+
+  /* We need to pre-fill our running path with the mount point. */
+  runningPathLen = strlen(pMountPointPath);
+  if (runningPathLen + 1 >= sizeof(pRunningPathStack)) {
+    pRunningPathHeap = (char*)fs_malloc(runningPathLen + 1 + 1,
+                                        fs_get_allocation_callbacks(pFS));
+    if (pRunningPathHeap == NULL) {
+      return FS_OUT_OF_MEMORY;
+    }
+
+    pRunningPath = pRunningPathHeap;
+  }
+
+  FS_COPY_MEMORY(pRunningPath, pMountPointPath, runningPathLen);
+  pRunningPath[runningPathLen] = '\0';
+
+  /* We need to make sure we have a trailing slash. */
+  if (runningPathLen > 0 && pRunningPath[runningPathLen - 1] != '/') {
+    pRunningPath[runningPathLen] = '/';
+    runningPathLen += 1;
+    pRunningPath[runningPathLen] = '\0';
   }
 
   for (;;) {
     fs_result result;
 
-    if (runningPathLen + iSegment.segmentLength + 1 >=
+    if (runningPathLen + iSegment.segmentLength + 1 + 1 >=
         sizeof(pRunningPathStack)) {
       if (pRunningPath == pRunningPathStack) {
         pRunningPathHeap =
-            (char *)fs_malloc(runningPathLen + iSegment.segmentLength + 1,
-                              fs_get_allocation_callbacks(pFS));
+            (char*)fs_malloc(runningPathLen + iSegment.segmentLength + 1 + 1,
+                             fs_get_allocation_callbacks(pFS));
         if (pRunningPathHeap == NULL) {
           return FS_OUT_OF_MEMORY;
         }
@@ -2237,10 +2517,10 @@ FS_API fs_result fs_mkdir(fs *pFS, const char *pPath) {
         FS_COPY_MEMORY(pRunningPathHeap, pRunningPathStack, runningPathLen);
         pRunningPath = pRunningPathHeap;
       } else {
-        char *pNewRunningPathHeap;
+        char* pNewRunningPathHeap;
 
-        pNewRunningPathHeap = (char *)fs_realloc(
-            pRunningPathHeap, runningPathLen + iSegment.segmentLength + 1,
+        pNewRunningPathHeap = (char*)fs_realloc(
+            pRunningPathHeap, runningPathLen + iSegment.segmentLength + 1 + 1,
             fs_get_allocation_callbacks(pFS));
         if (pNewRunningPathHeap == NULL) {
           fs_free(pRunningPathHeap, fs_get_allocation_callbacks(pFS));
@@ -2281,11 +2561,17 @@ FS_API fs_result fs_mkdir(fs *pFS, const char *pPath) {
     }
   }
 
+  if (pRunningPathHeap != NULL) {
+    fs_free(pRunningPathHeap, fs_get_allocation_callbacks(pFS));
+  }
+
   return FS_SUCCESS;
 }
 
-FS_API fs_result fs_info(fs *pFS, const char *pPath, int openMode,
-                         fs_file_info *pInfo) {
+FS_API fs_result fs_info(fs* pFS,
+                         const char* pPath,
+                         int openMode,
+                         fs_file_info* pInfo) {
   if (pInfo == NULL) {
     return FS_INVALID_ARGS;
   }
@@ -2295,7 +2581,7 @@ FS_API fs_result fs_info(fs *pFS, const char *pPath, int openMode,
   return fs_file_open_or_info(pFS, pPath, openMode, NULL, pInfo);
 }
 
-FS_API fs_stream *fs_get_stream(fs *pFS) {
+FS_API fs_stream* fs_get_stream(fs* pFS) {
   if (pFS == NULL) {
     return NULL;
   }
@@ -2303,7 +2589,7 @@ FS_API fs_stream *fs_get_stream(fs *pFS) {
   return pFS->pStream;
 }
 
-FS_API const fs_allocation_callbacks *fs_get_allocation_callbacks(fs *pFS) {
+FS_API const fs_allocation_callbacks* fs_get_allocation_callbacks(fs* pFS) {
   if (pFS == NULL) {
     return NULL;
   }
@@ -2311,7 +2597,7 @@ FS_API const fs_allocation_callbacks *fs_get_allocation_callbacks(fs *pFS) {
   return &pFS->allocationCallbacks;
 }
 
-FS_API void *fs_get_backend_data(fs *pFS) {
+FS_API void* fs_get_backend_data(fs* pFS) {
   size_t offset = sizeof(fs);
 
   if (pFS == NULL) {
@@ -2325,7 +2611,7 @@ FS_API void *fs_get_backend_data(fs *pFS) {
   return FS_OFFSET_PTR(pFS, offset);
 }
 
-FS_API size_t fs_get_backend_data_size(fs *pFS) {
+FS_API size_t fs_get_backend_data_size(fs* pFS) {
   if (pFS == NULL) {
     return 0;
   }
@@ -2333,20 +2619,22 @@ FS_API size_t fs_get_backend_data_size(fs *pFS) {
   return pFS->backendDataSize;
 }
 
-static fs_result fs_open_archive_nolock(fs *pFS, const fs_backend *pBackend,
-                                        void *pBackendConfig,
-                                        const char *pArchivePath,
-                                        size_t archivePathLen, int openMode,
-                                        fs **ppArchive) {
+static fs_result fs_open_archive_nolock(fs* pFS,
+                                        const fs_backend* pBackend,
+                                        void* pBackendConfig,
+                                        const char* pArchivePath,
+                                        size_t archivePathLen,
+                                        int openMode,
+                                        fs** ppArchive) {
   fs_result result;
-  fs *pArchive;
+  fs* pArchive;
   fs_config archiveConfig;
-  fs_file *pArchiveFile;
+  fs_file* pArchiveFile;
   char pArchivePathNTStack[1024];
-  char *pArchivePathNTHeap = NULL; /* <-- Must be initialized to null. */
-  char *pArchivePathNT;
+  char* pArchivePathNTHeap = NULL; /* <-- Must be initialized to null. */
+  char* pArchivePathNT;
   fs_proxy_config proxyConfig;
-  fs_opened_archive *pOpenedArchive;
+  fs_opened_archive* pOpenedArchive;
 
   /*
   The first thing to do is check if the archive has already been opened. If so,
@@ -2371,11 +2659,11 @@ static fs_result fs_open_archive_nolock(fs *pFS, const fs_backend *pBackend,
   */
   if (archivePathLen == FS_NULL_TERMINATED) {
     pArchivePathNT =
-        (char *)pArchivePath; /* <-- Safe cast. We won't be modifying this. */
+        (char*)pArchivePath; /* <-- Safe cast. We won't be modifying this. */
   } else {
     if (archivePathLen >= sizeof(pArchivePathNTStack)) {
-      pArchivePathNTHeap = (char *)fs_malloc(archivePathLen + 1,
-                                             fs_get_allocation_callbacks(pFS));
+      pArchivePathNTHeap = (char*)fs_malloc(archivePathLen + 1,
+                                            fs_get_allocation_callbacks(pFS));
       if (pArchivePathNTHeap == NULL) {
         return FS_OUT_OF_MEMORY;
       }
@@ -2435,11 +2723,13 @@ static fs_result fs_open_archive_nolock(fs *pFS, const fs_backend *pBackend,
   return FS_SUCCESS;
 }
 
-FS_API fs_result fs_open_archive_ex(fs *pFS, const fs_backend *pBackend,
-                                    void *pBackendConfig,
-                                    const char *pArchivePath,
-                                    size_t archivePathLen, int openMode,
-                                    fs **ppArchive) {
+FS_API fs_result fs_open_archive_ex(fs* pFS,
+                                    const fs_backend* pBackend,
+                                    void* pBackendConfig,
+                                    const char* pArchivePath,
+                                    size_t archivePathLen,
+                                    int openMode,
+                                    fs** ppArchive) {
   fs_result result;
 
   if (ppArchive == NULL) {
@@ -2474,8 +2764,10 @@ FS_API fs_result fs_open_archive_ex(fs *pFS, const fs_backend *pBackend,
   return result;
 }
 
-FS_API fs_result fs_open_archive(fs *pFS, const char *pArchivePath,
-                                 int openMode, fs **ppArchive) {
+FS_API fs_result fs_open_archive(fs* pFS,
+                                 const char* pArchivePath,
+                                 int openMode,
+                                 fs** ppArchive) {
   fs_result backendIteratorResult;
   fs_registered_backend_iterator iBackend;
   fs_result result;
@@ -2513,8 +2805,8 @@ FS_API fs_result fs_open_archive(fs *pFS, const char *pArchivePath,
   return result;
 }
 
-FS_API void fs_close_archive(fs *pArchive) {
-  fs *pOwnerFS;
+FS_API void fs_close_archive(fs* pArchive) {
+  fs* pOwnerFS;
 
   /* This function should only ever be called for archives that were opened with
    * fs_open_archive(). */
@@ -2524,7 +2816,9 @@ FS_API void fs_close_archive(fs *pArchive) {
   FS_ASSERT(pOwnerFS != NULL);
 
   fs_mtx_lock(&pOwnerFS->archiveLock);
-  { fs_decrement_opened_archive_ref_count(pOwnerFS, pArchive); }
+  {
+    fs_decrement_opened_archive_ref_count(pOwnerFS, pArchive);
+  }
   fs_mtx_unlock(&pOwnerFS->archiveLock);
 
   /*
@@ -2543,7 +2837,7 @@ FS_API void fs_close_archive(fs *pArchive) {
   fs_gc_archives(pOwnerFS, FS_GC_POLICY_THRESHOLD);
 }
 
-static void fs_gc_archives_nolock(fs *pFS, int policy) {
+static void fs_gc_archives_nolock(fs* pFS, int policy) {
   size_t unreferencedCount = 0;
   size_t collectionCount = 0;
   size_t cursor = 0;
@@ -2557,31 +2851,31 @@ static void fs_gc_archives_nolock(fs *pFS, int policy) {
   if ((policy & FS_GC_POLICY_FULL) != 0) {
     cursor = 0;
     while (cursor < pFS->openedArchivesSize) {
-      fs_opened_archive *pOpenedArchive =
-          (fs_opened_archive *)FS_OFFSET_PTR(pFS->pOpenedArchives, cursor);
+      fs_opened_archive* pOpenedArchive =
+          (fs_opened_archive*)FS_OFFSET_PTR(pFS->pOpenedArchives, cursor);
       FS_ASSERT(pOpenedArchive != NULL);
 
       fs_gc_archives(pOpenedArchive->pArchive, policy);
-      cursor += FS_ALIGN(sizeof(fs *) + sizeof(size_t) +
-                             strlen(pOpenedArchive->pPath) + 1,
-                         FS_SIZEOF_PTR);
+      cursor += FS_ALIGN(
+          sizeof(fs*) + sizeof(size_t) + strlen(pOpenedArchive->pPath) + 1,
+          FS_SIZEOF_PTR);
     }
   }
 
   /* The first thing to do is count how many unreferenced archives there are. */
   cursor = 0;
   while (cursor < pFS->openedArchivesSize) {
-    fs_opened_archive *pOpenedArchive =
-        (fs_opened_archive *)FS_OFFSET_PTR(pFS->pOpenedArchives, cursor);
+    fs_opened_archive* pOpenedArchive =
+        (fs_opened_archive*)FS_OFFSET_PTR(pFS->pOpenedArchives, cursor);
 
     if (pOpenedArchive->refCount == 0) {
       unreferencedCount += 1;
     }
 
     /* Getting here means this archive is not the one we're looking for. */
-    cursor += FS_ALIGN(sizeof(fs *) + sizeof(size_t) +
-                           strlen(pOpenedArchive->pPath) + 1,
-                       FS_SIZEOF_PTR);
+    cursor += FS_ALIGN(
+        sizeof(fs*) + sizeof(size_t) + strlen(pOpenedArchive->pPath) + 1,
+        FS_SIZEOF_PTR);
   }
 
   /* Now we need to determine how many archives we should unload. */
@@ -2601,10 +2895,10 @@ static void fs_gc_archives_nolock(fs *pFS, int policy) {
   /* Now we need to unload the archives. */
   cursor = 0;
   while (collectionCount > 0 && cursor < pFS->openedArchivesSize) {
-    fs_opened_archive *pOpenedArchive =
-        (fs_opened_archive *)FS_OFFSET_PTR(pFS->pOpenedArchives, cursor);
+    fs_opened_archive* pOpenedArchive =
+        (fs_opened_archive*)FS_OFFSET_PTR(pFS->pOpenedArchives, cursor);
     if (pOpenedArchive->refCount == 0) {
-      fs_file *pArchiveFile;
+      fs_file* pArchiveFile;
 
       pArchiveFile = fs_proxy_get_archive_file(pOpenedArchive->pArchive);
       FS_ASSERT(pArchiveFile != NULL);
@@ -2620,14 +2914,14 @@ static void fs_gc_archives_nolock(fs *pFS, int policy) {
       /* Note that we're not advancing the cursor here because we just removed
        * this entry. */
     } else {
-      cursor += FS_ALIGN(sizeof(fs *) + sizeof(size_t) +
-                             strlen(pOpenedArchive->pPath) + 1,
-                         FS_SIZEOF_PTR);
+      cursor += FS_ALIGN(
+          sizeof(fs*) + sizeof(size_t) + strlen(pOpenedArchive->pPath) + 1,
+          FS_SIZEOF_PTR);
     }
   }
 }
 
-FS_API void fs_gc_archives(fs *pFS, int policy) {
+FS_API void fs_gc_archives(fs* pFS, int policy) {
   if (pFS == NULL) {
     return;
   }
@@ -2639,11 +2933,13 @@ FS_API void fs_gc_archives(fs *pFS, int policy) {
   }
 
   fs_mtx_lock(&pFS->archiveLock);
-  { fs_gc_archives_nolock(pFS, policy); }
+  {
+    fs_gc_archives_nolock(pFS, policy);
+  }
   fs_mtx_unlock(&pFS->archiveLock);
 }
 
-FS_API void fs_set_archive_gc_threshold(fs *pFS, size_t threshold) {
+FS_API void fs_set_archive_gc_threshold(fs* pFS, size_t threshold) {
   if (pFS == NULL) {
     return;
   }
@@ -2651,7 +2947,7 @@ FS_API void fs_set_archive_gc_threshold(fs *pFS, size_t threshold) {
   pFS->archiveGCThreshold = threshold;
 }
 
-FS_API size_t fs_get_archive_gc_threshold(fs *pFS) {
+FS_API size_t fs_get_archive_gc_threshold(fs* pFS) {
   if (pFS == NULL) {
     return 0;
   }
@@ -2659,12 +2955,13 @@ FS_API size_t fs_get_archive_gc_threshold(fs *pFS) {
   return pFS->archiveGCThreshold;
 }
 
-static size_t fs_file_duplicate_alloc_size(fs *pFS) {
+static size_t fs_file_duplicate_alloc_size(fs* pFS) {
   return sizeof(fs_file) +
          fs_backend_file_alloc_size(fs_get_backend_or_default(pFS), pFS);
 }
 
-static void fs_file_preinit_no_stream(fs_file *pFile, fs *pFS,
+static void fs_file_preinit_no_stream(fs_file* pFile,
+                                      fs* pFS,
                                       size_t backendDataSize) {
   FS_ASSERT(pFile != NULL);
 
@@ -2672,37 +2969,41 @@ static void fs_file_preinit_no_stream(fs_file *pFile, fs *pFS,
   pFile->backendDataSize = backendDataSize;
 }
 
-static void fs_file_uninit(fs_file *pFile);
+static void fs_file_uninit(fs_file* pFile);
 
-static fs_result fs_file_stream_read(fs_stream *pStream, void *pDst,
-                                     size_t bytesToRead, size_t *pBytesRead) {
-  return fs_file_read((fs_file *)pStream, pDst, bytesToRead, pBytesRead);
+static fs_result fs_file_stream_read(fs_stream* pStream,
+                                     void* pDst,
+                                     size_t bytesToRead,
+                                     size_t* pBytesRead) {
+  return fs_file_read((fs_file*)pStream, pDst, bytesToRead, pBytesRead);
 }
 
-static fs_result fs_file_stream_write(fs_stream *pStream, const void *pSrc,
+static fs_result fs_file_stream_write(fs_stream* pStream,
+                                      const void* pSrc,
                                       size_t bytesToWrite,
-                                      size_t *pBytesWritten) {
-  return fs_file_write((fs_file *)pStream, pSrc, bytesToWrite, pBytesWritten);
+                                      size_t* pBytesWritten) {
+  return fs_file_write((fs_file*)pStream, pSrc, bytesToWrite, pBytesWritten);
 }
 
-static fs_result fs_file_stream_seek(fs_stream *pStream, fs_int64 offset,
+static fs_result fs_file_stream_seek(fs_stream* pStream,
+                                     fs_int64 offset,
                                      fs_seek_origin origin) {
-  return fs_file_seek((fs_file *)pStream, offset, origin);
+  return fs_file_seek((fs_file*)pStream, offset, origin);
 }
 
-static fs_result fs_file_stream_tell(fs_stream *pStream, fs_int64 *pCursor) {
-  return fs_file_tell((fs_file *)pStream, pCursor);
+static fs_result fs_file_stream_tell(fs_stream* pStream, fs_int64* pCursor) {
+  return fs_file_tell((fs_file*)pStream, pCursor);
 }
 
-static size_t fs_file_stream_alloc_size(fs_stream *pStream) {
-  return fs_file_duplicate_alloc_size(fs_file_get_fs((fs_file *)pStream));
+static size_t fs_file_stream_alloc_size(fs_stream* pStream) {
+  return fs_file_duplicate_alloc_size(fs_file_get_fs((fs_file*)pStream));
 }
 
-static fs_result fs_file_stream_duplicate(fs_stream *pStream,
-                                          fs_stream *pDuplicatedStream) {
+static fs_result fs_file_stream_duplicate(fs_stream* pStream,
+                                          fs_stream* pDuplicatedStream) {
   fs_result result;
-  fs_file *pStreamFile = (fs_file *)pStream;
-  fs_file *pDuplicatedStreamFile = (fs_file *)pDuplicatedStream;
+  fs_file* pStreamFile = (fs_file*)pStream;
+  fs_file* pDuplicatedStreamFile = (fs_file*)pDuplicatedStream;
 
   FS_ASSERT(pStreamFile != NULL);
   FS_ASSERT(pDuplicatedStreamFile != NULL);
@@ -2722,10 +3023,10 @@ static fs_result fs_file_stream_duplicate(fs_stream *pStream,
   return FS_SUCCESS;
 }
 
-static void fs_file_stream_uninit(fs_stream *pStream) {
+static void fs_file_stream_uninit(fs_stream* pStream) {
   /* We need to uninitialize the file, but *not* free it. Freeing will be done
    * at a higher level in fs_stream_delete_duplicate(). */
-  fs_file_uninit((fs_file *)pStream);
+  fs_file_uninit((fs_file*)pStream);
 }
 
 static fs_stream_vtable fs_file_stream_vtable = {
@@ -2733,13 +3034,15 @@ static fs_stream_vtable fs_file_stream_vtable = {
     fs_file_stream_tell,  fs_file_stream_alloc_size, fs_file_stream_duplicate,
     fs_file_stream_uninit};
 
-static const fs_backend *fs_file_get_backend(fs_file *pFile) {
+static const fs_backend* fs_file_get_backend(fs_file* pFile) {
   return fs_get_backend_or_default(fs_file_get_fs(pFile));
 }
 
-static fs_result fs_open_or_info_from_archive(fs *pFS, const char *pFilePath,
-                                              int openMode, fs_file **ppFile,
-                                              fs_file_info *pInfo) {
+static fs_result fs_open_or_info_from_archive(fs* pFS,
+                                              const char* pFilePath,
+                                              int openMode,
+                                              fs_file** ppFile,
+                                              fs_file_info* pInfo) {
   /*
   NOTE: A lot of return values are FS_DOES_NOT_EXIST. This is because this
   function will only be called in response to a FS_DOES_NOT_EXIST in the first
@@ -2801,10 +3104,10 @@ static fs_result fs_open_or_info_from_archive(fs *pFS, const char *pFilePath,
     for (backendIteratorResult = fs_first_registered_backend(pFS, &iBackend);
          backendIteratorResult == FS_SUCCESS;
          backendIteratorResult = fs_next_registered_backend(&iBackend)) {
-      if (fs_path_extension_equal(iFilePathSeg.pFullPath +
-                                      iFilePathSeg.segmentOffset,
-                                  iFilePathSeg.segmentLength,
-                                  iBackend.pExtension, iBackend.extensionLen)) {
+      if (fs_path_extension_equal(
+              iFilePathSeg.pFullPath + iFilePathSeg.segmentOffset,
+              iFilePathSeg.segmentLength, iBackend.pExtension,
+              iBackend.extensionLen)) {
         isArchive = FS_TRUE;
 
         /* This path points to an explicit archive. If this is the file we're
@@ -2818,7 +3121,7 @@ static fs_result fs_open_or_info_from_archive(fs *pFS, const char *pFilePath,
           */
           return FS_DOES_NOT_EXIST;
         } else {
-          fs *pArchive;
+          fs* pArchive;
 
           result = fs_open_archive_ex(
               pFS, iBackend.pBackend, iBackend.pBackendConfig,
@@ -2890,7 +3193,7 @@ static fs_result fs_open_or_info_from_archive(fs *pFS, const char *pFilePath,
       that archive and then try opening the file from there. If it works we
       return, otherwise we unload that archive and keep trying.
       */
-      fs_iterator *pIterator;
+      fs_iterator* pIterator;
 
       for (pIterator = fs_backend_first(
                fs_get_backend_or_default(pFS), pFS, iFilePathSeg.pFullPath,
@@ -2906,18 +3209,18 @@ static fs_result fs_open_or_info_from_archive(fs *pFS, const char *pFilePath,
                                       iBackend.extensionLen)) {
             /* Looks like an archive. We can load this one up and try opening
              * from it. */
-            fs *pArchive;
+            fs* pArchive;
             char pArchivePathNTStack[1024];
-            char *pArchivePathNTHeap =
+            char* pArchivePathNTHeap =
                 NULL; /* <-- Must be initialized to null. */
-            char *pArchivePathNT;
+            char* pArchivePathNT;
             size_t archivePathLen;
 
             archivePathLen = iFilePathSeg.segmentOffset +
                              iFilePathSeg.segmentLength + 1 +
                              pIterator->nameLen;
             if (archivePathLen >= sizeof(pArchivePathNTStack)) {
-              pArchivePathNTHeap = (char *)fs_malloc(
+              pArchivePathNTHeap = (char*)fs_malloc(
                   archivePathLen + 1, fs_get_allocation_callbacks(pFS));
               if (pArchivePathNTHeap == NULL) {
                 fs_backend_free_iterator(fs_get_backend_or_default(pFS),
@@ -2930,9 +3233,9 @@ static fs_result fs_open_or_info_from_archive(fs *pFS, const char *pFilePath,
               pArchivePathNT = pArchivePathNTStack;
             }
 
-            FS_COPY_MEMORY(pArchivePathNT, iFilePathSeg.pFullPath,
-                           iFilePathSeg.segmentOffset +
-                               iFilePathSeg.segmentLength);
+            FS_COPY_MEMORY(
+                pArchivePathNT, iFilePathSeg.pFullPath,
+                iFilePathSeg.segmentOffset + iFilePathSeg.segmentLength);
             pArchivePathNT[iFilePathSeg.segmentOffset +
                            iFilePathSeg.segmentLength] = '/';
             FS_COPY_MEMORY(pArchivePathNT + iFilePathSeg.segmentOffset +
@@ -3005,10 +3308,10 @@ static fs_result fs_open_or_info_from_archive(fs *pFS, const char *pFilePath,
   return FS_DOES_NOT_EXIST;
 }
 
-static fs_result fs_file_alloc(fs *pFS, fs_file **ppFile) {
-  fs_file *pFile;
+static fs_result fs_file_alloc(fs* pFS, fs_file** ppFile) {
+  fs_file* pFile;
   fs_result result;
-  const fs_backend *pBackend;
+  const fs_backend* pBackend;
   size_t backendDataSizeInBytes = 0;
 
   FS_ASSERT(ppFile != NULL);
@@ -3021,8 +3324,8 @@ static fs_result fs_file_alloc(fs *pFS, fs_file **ppFile) {
 
   backendDataSizeInBytes = fs_backend_file_alloc_size(pBackend, pFS);
 
-  pFile = (fs_file *)fs_calloc(sizeof(fs_file) + backendDataSizeInBytes,
-                               fs_get_allocation_callbacks(pFS));
+  pFile = (fs_file*)fs_calloc(sizeof(fs_file) + backendDataSizeInBytes,
+                              fs_get_allocation_callbacks(pFS));
   if (pFile == NULL) {
     return FS_OUT_OF_MEMORY;
   }
@@ -3041,7 +3344,7 @@ static fs_result fs_file_alloc(fs *pFS, fs_file **ppFile) {
   return FS_SUCCESS;
 }
 
-static fs_result fs_file_alloc_if_necessary(fs *pFS, fs_file **ppFile) {
+static fs_result fs_file_alloc_if_necessary(fs* pFS, fs_file** ppFile) {
   FS_ASSERT(ppFile != NULL);
 
   if (*ppFile == NULL) {
@@ -3051,12 +3354,14 @@ static fs_result fs_file_alloc_if_necessary(fs *pFS, fs_file **ppFile) {
   }
 }
 
-static fs_result
-fs_file_alloc_if_necessary_and_open_or_info(fs *pFS, const char *pFilePath,
-                                            int openMode, fs_file **ppFile,
-                                            fs_file_info *pInfo) {
+static fs_result fs_file_alloc_if_necessary_and_open_or_info(
+    fs* pFS,
+    const char* pFilePath,
+    int openMode,
+    fs_file** ppFile,
+    fs_file_info* pInfo) {
   fs_result result;
-  const fs_backend *pBackend;
+  const fs_backend* pBackend;
 
   if (ppFile != NULL) {
     result = fs_file_alloc_if_necessary(pFS, ppFile);
@@ -3074,11 +3379,11 @@ fs_file_alloc_if_necessary_and_open_or_info(fs *pFS, const char *pFilePath,
 
   /*
   Take a copy of the file system's stream if necessary. We only need to do this
-  if we're opening the file, and if the owner `fs` object `pFS` has itself has a
+  if we're opening the file, and if the owner `fs` object `pFS` itself has a
   stream.
   */
   if (pFS != NULL && ppFile != NULL) {
-    fs_stream *pFSStream = pFS->pStream;
+    fs_stream* pFSStream = pFS->pStream;
     if (pFSStream != NULL) {
       result = fs_stream_duplicate(pFSStream, fs_get_allocation_callbacks(pFS),
                                    &(*ppFile)->pStreamForBackend);
@@ -3104,15 +3409,15 @@ fs_file_alloc_if_necessary_and_open_or_info(fs *pFS, const char *pFilePath,
     /* Create the directory structure if necessary. */
     if ((openMode & FS_WRITE) != 0 && (openMode & FS_NO_CREATE_DIRS) == 0) {
       char pDirPathStack[1024];
-      char *pDirPathHeap = NULL;
-      char *pDirPath;
+      char* pDirPathHeap = NULL;
+      char* pDirPath;
       int dirPathLen;
 
       dirPathLen = fs_path_directory(pDirPathStack, sizeof(pDirPathStack),
                                      pFilePath, FS_NULL_TERMINATED);
       if (dirPathLen >= (int)sizeof(pDirPathStack)) {
         pDirPathHeap =
-            (char *)fs_malloc(dirPathLen + 1, fs_get_allocation_callbacks(pFS));
+            (char*)fs_malloc(dirPathLen + 1, fs_get_allocation_callbacks(pFS));
         if (pDirPathHeap == NULL) {
           return FS_OUT_OF_MEMORY;
         }
@@ -3131,7 +3436,7 @@ fs_file_alloc_if_necessary_and_open_or_info(fs *pFS, const char *pFilePath,
         pDirPath = pDirPathStack;
       }
 
-      result = fs_mkdir(pFS, pDirPath);
+      result = fs_mkdir(pFS, pDirPath, FS_IGNORE_MOUNTS);
       if (result != FS_SUCCESS) {
         fs_stream_delete_duplicate((*ppFile)->pStreamForBackend,
                                    fs_get_allocation_callbacks(pFS));
@@ -3180,7 +3485,7 @@ fs_file_alloc_if_necessary_and_open_or_info(fs *pFS, const char *pFilePath,
   return result;
 }
 
-static fs_result fs_validate_path(const char *pPath, size_t pathLen, int mode) {
+static fs_result fs_validate_path(const char* pPath, size_t pathLen, int mode) {
   if ((mode & FS_NO_SPECIAL_DIRS) != 0) {
     fs_path_iterator iPathSeg;
     fs_result result;
@@ -3200,9 +3505,11 @@ static fs_result fs_validate_path(const char *pPath, size_t pathLen, int mode) {
   return FS_SUCCESS;
 }
 
-FS_API fs_result fs_file_open_or_info(fs *pFS, const char *pFilePath,
-                                      int openMode, fs_file **ppFile,
-                                      fs_file_info *pInfo) {
+FS_API fs_result fs_file_open_or_info(fs* pFS,
+                                      const char* pFilePath,
+                                      int openMode,
+                                      fs_file** ppFile,
+                                      fs_file_info* pInfo) {
   fs_result result;
   fs_result mountPointIerationResult;
 
@@ -3226,57 +3533,22 @@ FS_API fs_result fs_file_open_or_info(fs *pFS, const char *pFilePath,
   }
 
   if ((openMode & FS_WRITE) != 0) {
-    /*
-    Opening in write mode. We need to open from a mount point. This is a bit
-    different from opening in read mode because we want to use the mount point
-    that most closely matches the start of the file path. Consider, for example,
-    the following mount points:
-
-        - config
-        - config/global
-
-    If we're trying to open "config/global/settings.cfg" we want to use the
-    "config/global" mount point, not the "config" mount point. This is because
-    the "config/global" mount point is more specific and therefore more likely
-    to be the correct one.
-
-    We'll need to iterate over every mount point and keep track of the mount
-    point with the longest prefix that matches the start of the file path.
-    */
+    /* Opening in write mode. */
     if (pFS != NULL) {
-      fs_mount_list_iterator iMountPoint;
-      fs_mount_point *pBestMountPoint = NULL;
-      const char *pBestMountPointPath = NULL;
-      const char *pBestMountPointFileSubPath = NULL;
+      fs_mount_point* pBestMountPoint = NULL;
+      const char* pBestMountPointPath = NULL;
+      const char* pBestMountPointFileSubPath = NULL;
 
-      for (mountPointIerationResult =
-               fs_mount_list_first(pFS->pWriteMountPoints, &iMountPoint);
-           mountPointIerationResult == FS_SUCCESS;
-           mountPointIerationResult = fs_mount_list_next(&iMountPoint)) {
-        const char *pFileSubPath =
-            fs_path_trim_base(pFilePath, FS_NULL_TERMINATED,
-                              iMountPoint.pMountPointPath, FS_NULL_TERMINATED);
-        if (pFileSubPath == NULL) {
-          continue; /* The file path doesn't start with this mount point so
-                       skip. */
-        }
-
-        if (pBestMountPointFileSubPath == NULL ||
-            strlen(pFileSubPath) < strlen(pBestMountPointFileSubPath)) {
-          pBestMountPoint = iMountPoint.internal.pMountPoint;
-          pBestMountPointPath = iMountPoint.pPath;
-          pBestMountPointFileSubPath = pFileSubPath;
-        }
-      }
-
+      pBestMountPoint = fs_find_best_write_mount_point(
+          pFS, pFilePath, &pBestMountPointPath, &pBestMountPointFileSubPath);
       if (pBestMountPoint != NULL) {
         char pActualPathStack[1024];
-        char *pActualPathHeap = NULL;
-        char *pActualPath;
+        char* pActualPathHeap = NULL;
+        char* pActualPath;
         int actualPathLen;
         char pActualPathCleanStack[1024];
-        char *pActualPathCleanHeap = NULL;
-        char *pActualPathClean;
+        char* pActualPathCleanHeap = NULL;
+        char* pActualPathClean;
         int actualPathCleanLen;
         unsigned int cleanOptions = (openMode & FS_NO_ABOVE_ROOT_NAVIGATION);
 
@@ -3295,8 +3567,8 @@ FS_API fs_result fs_file_open_or_info(fs *pFS, const char *pFilePath,
         if (actualPathLen > 0 &&
             (size_t)actualPathLen >= sizeof(pActualPathStack)) {
           /* Not enough room on the stack. Allocate on the heap. */
-          pActualPathHeap = (char *)fs_malloc(actualPathLen + 1,
-                                              fs_get_allocation_callbacks(pFS));
+          pActualPathHeap = (char*)fs_malloc(actualPathLen + 1,
+                                             fs_get_allocation_callbacks(pFS));
           if (pActualPathHeap == NULL) {
             return FS_OUT_OF_MEMORY;
           }
@@ -3321,7 +3593,7 @@ FS_API fs_result fs_file_open_or_info(fs *pFS, const char *pFilePath,
         }
 
         if (actualPathCleanLen >= (int)sizeof(pActualPathCleanStack)) {
-          pActualPathCleanHeap = (char *)fs_malloc(
+          pActualPathCleanHeap = (char*)fs_malloc(
               actualPathCleanLen + 1, fs_get_allocation_callbacks(pFS));
           if (pActualPathCleanHeap == NULL) {
             fs_free(pActualPathHeap, fs_get_allocation_callbacks(pFS));
@@ -3386,12 +3658,12 @@ FS_API fs_result fs_file_open_or_info(fs *pFS, const char *pFilePath,
         mount point. If it doesn't match we just skip to the next mount point.
         */
         char pFileSubPathCleanStack[1024];
-        char *pFileSubPathCleanHeap = NULL;
-        char *pFileSubPathClean;
+        char* pFileSubPathCleanHeap = NULL;
+        char* pFileSubPathClean;
         int fileSubPathCleanLen;
         unsigned int cleanOptions = (openMode & FS_NO_ABOVE_ROOT_NAVIGATION);
 
-        const char *pFileSubPath =
+        const char* pFileSubPath =
             fs_path_trim_base(pFilePath, FS_NULL_TERMINATED,
                               iMountPoint.pMountPointPath, FS_NULL_TERMINATED);
         if (pFileSubPath == NULL) {
@@ -3417,7 +3689,7 @@ FS_API fs_result fs_file_open_or_info(fs *pFS, const char *pFilePath,
           }
 
           if (fileSubPathCleanLen >= (int)sizeof(pFileSubPathCleanStack)) {
-            pFileSubPathCleanHeap = (char *)fs_malloc(
+            pFileSubPathCleanHeap = (char*)fs_malloc(
                 fileSubPathCleanLen + 1, fs_get_allocation_callbacks(pFS));
             if (pFileSubPathCleanHeap == NULL) {
               return FS_OUT_OF_MEMORY;
@@ -3432,8 +3704,8 @@ FS_API fs_result fs_file_open_or_info(fs *pFS, const char *pFilePath,
           }
         } else {
           pFileSubPathClean =
-              (char *)pFileSubPath; /* Safe cast. Will not be modified past this
-                                       point. */
+              (char*)pFileSubPath; /* Safe cast. Will not be modified past this
+                                      point. */
           fileSubPathCleanLen = (int)strlen(pFileSubPathClean);
         }
 
@@ -3463,8 +3735,8 @@ FS_API fs_result fs_file_open_or_info(fs *pFS, const char *pFilePath,
           /* The mount point is a directory. We need to combine the sub-path
            * with the mount point's original path and then load the file. */
           char pActualPathStack[1024];
-          char *pActualPathHeap = NULL;
-          char *pActualPath;
+          char* pActualPathHeap = NULL;
+          char* pActualPath;
           int actualPathLen;
 
           actualPathLen = fs_path_append(
@@ -3473,7 +3745,7 @@ FS_API fs_result fs_file_open_or_info(fs *pFS, const char *pFilePath,
           if (actualPathLen > 0 &&
               (size_t)actualPathLen >= sizeof(pActualPathStack)) {
             /* Not enough room on the stack. Allocate on the heap. */
-            pActualPathHeap = (char *)fs_malloc(
+            pActualPathHeap = (char*)fs_malloc(
                 actualPathLen + 1, fs_get_allocation_callbacks(pFS));
             if (pActualPathHeap == NULL) {
               return FS_OUT_OF_MEMORY;
@@ -3535,19 +3807,43 @@ FS_API fs_result fs_file_open_or_info(fs *pFS, const char *pFilePath,
   return result;
 }
 
-FS_API fs_result fs_file_open(fs *pFS, const char *pFilePath, int openMode,
-                              fs_file **ppFile) {
+FS_API fs_result fs_file_open(fs* pFS,
+                              const char* pFilePath,
+                              int openMode,
+                              fs_file** ppFile) {
   if (ppFile == NULL) {
     return FS_INVALID_ARGS;
   }
 
   *ppFile = NULL;
 
-  return fs_file_open_or_info(pFS, pFilePath, openMode, ppFile, NULL);
+  if ((openMode & FS_TEMP) == FS_TEMP) {
+    /*
+    We're creating a temporary file. We can use fs_mktmp() to generate a file
+    path for us. The input path will act as the prefix.
+
+    We'll use a stack allocation for the temporary file path. We can make this
+    more robust later by checking for FS_PATH_TOO_LONG and allocating on the
+    heap if necessary.
+    */
+    char pTmpPath[4096];
+    fs_result result;
+
+    result = fs_mktmp(pFilePath, pTmpPath, sizeof(pTmpPath), FS_MKTMP_FILE);
+    if (result != FS_SUCCESS) {
+      return result;
+    }
+
+    return fs_file_open_or_info(pFS, pTmpPath, openMode | FS_IGNORE_MOUNTS,
+                                ppFile, NULL);
+  } else {
+    return fs_file_open_or_info(pFS, pFilePath, openMode, ppFile, NULL);
+  }
 }
 
-FS_API fs_result fs_file_open_from_handle(fs *pFS, void *hBackendFile,
-                                          fs_file **ppFile) {
+FS_API fs_result fs_file_open_from_handle(fs* pFS,
+                                          void* hBackendFile,
+                                          fs_file** ppFile) {
   fs_result result;
 
   if (ppFile == NULL) {
@@ -3572,13 +3868,13 @@ FS_API fs_result fs_file_open_from_handle(fs *pFS, void *hBackendFile,
   return FS_SUCCESS;
 }
 
-static void fs_file_uninit(fs_file *pFile) {
+static void fs_file_uninit(fs_file* pFile) {
   fs_backend_file_close(fs_get_backend_or_default(fs_file_get_fs(pFile)),
                         pFile);
 }
 
-FS_API void fs_file_close(fs_file *pFile) {
-  const fs_backend *pBackend = fs_file_get_backend(pFile);
+FS_API void fs_file_close(fs_file* pFile) {
+  const fs_backend* pBackend = fs_file_get_backend(pFile);
 
   FS_ASSERT(pBackend != NULL);
   (void)pBackend;
@@ -3597,11 +3893,17 @@ FS_API void fs_file_close(fs_file *pFile) {
   fs_free(pFile, fs_get_allocation_callbacks(pFile->pFS));
 }
 
-FS_API fs_result fs_file_read(fs_file *pFile, void *pDst, size_t bytesToRead,
-                              size_t *pBytesRead) {
+FS_API fs_result fs_file_read(fs_file* pFile,
+                              void* pDst,
+                              size_t bytesToRead,
+                              size_t* pBytesRead) {
   fs_result result;
   size_t bytesRead;
-  const fs_backend *pBackend;
+  const fs_backend* pBackend;
+
+  if (pBytesRead != NULL) {
+    *pBytesRead = 0;
+  }
 
   if (pFile == NULL || pDst == NULL) {
     return FS_INVALID_ARGS;
@@ -3628,14 +3930,31 @@ FS_API fs_result fs_file_read(fs_file *pFile, void *pDst, size_t bytesToRead,
     return result;
   }
 
+  /*
+  If pBytesRead is null it means the caller will never be able to tell exactly
+  how many bytes were read. In this case, if we didn't read the exact number of
+  bytes that were requested we'll need to return an error.
+  */
+  if (pBytesRead == NULL) {
+    if (bytesRead != bytesToRead) {
+      return FS_ERROR;
+    }
+  }
+
   return FS_SUCCESS;
 }
 
-FS_API fs_result fs_file_write(fs_file *pFile, const void *pSrc,
-                               size_t bytesToWrite, size_t *pBytesWritten) {
+FS_API fs_result fs_file_write(fs_file* pFile,
+                               const void* pSrc,
+                               size_t bytesToWrite,
+                               size_t* pBytesWritten) {
   fs_result result;
   size_t bytesWritten;
-  const fs_backend *pBackend;
+  const fs_backend* pBackend;
+
+  if (pBytesWritten != NULL) {
+    *pBytesWritten = 0;
+  }
 
   if (pFile == NULL || pSrc == NULL) {
     return FS_INVALID_ARGS;
@@ -3653,10 +3972,20 @@ FS_API fs_result fs_file_write(fs_file *pFile, const void *pSrc,
     *pBytesWritten = bytesWritten;
   }
 
+  /*
+  As with reading, if the caller passes in null for pBytesWritten we need to
+  return an error if the exact number of bytes couldn't be written.
+  */
+  if (pBytesWritten == NULL) {
+    if (bytesWritten != bytesToWrite) {
+      return FS_ERROR;
+    }
+  }
+
   return result;
 }
 
-FS_API fs_result fs_file_writef(fs_file *pFile, const char *fmt, ...) {
+FS_API fs_result fs_file_writef(fs_file* pFile, const char* fmt, ...) {
   va_list args;
   fs_result result;
 
@@ -3667,14 +3996,16 @@ FS_API fs_result fs_file_writef(fs_file *pFile, const char *fmt, ...) {
   return result;
 }
 
-FS_API fs_result fs_file_writefv(fs_file *pFile, const char *fmt,
+FS_API fs_result fs_file_writefv(fs_file* pFile,
+                                 const char* fmt,
                                  va_list args) {
   return fs_stream_writefv(fs_file_get_stream(pFile), fmt, args);
 }
 
-FS_API fs_result fs_file_seek(fs_file *pFile, fs_int64 offset,
+FS_API fs_result fs_file_seek(fs_file* pFile,
+                              fs_int64 offset,
                               fs_seek_origin origin) {
-  const fs_backend *pBackend;
+  const fs_backend* pBackend;
 
   if (pFile == NULL) {
     return FS_INVALID_ARGS;
@@ -3686,8 +4017,8 @@ FS_API fs_result fs_file_seek(fs_file *pFile, fs_int64 offset,
   return fs_backend_file_seek(pBackend, pFile, offset, origin);
 }
 
-FS_API fs_result fs_file_tell(fs_file *pFile, fs_int64 *pOffset) {
-  const fs_backend *pBackend;
+FS_API fs_result fs_file_tell(fs_file* pFile, fs_int64* pOffset) {
+  const fs_backend* pBackend;
 
   if (pOffset == NULL) {
     return FS_INVALID_ARGS; /* Doesn't make sense to be calling this without an
@@ -3706,8 +4037,8 @@ FS_API fs_result fs_file_tell(fs_file *pFile, fs_int64 *pOffset) {
   return fs_backend_file_tell(pBackend, pFile, pOffset);
 }
 
-FS_API fs_result fs_file_flush(fs_file *pFile) {
-  const fs_backend *pBackend;
+FS_API fs_result fs_file_flush(fs_file* pFile) {
+  const fs_backend* pBackend;
 
   if (pFile == NULL) {
     return FS_INVALID_ARGS;
@@ -3719,8 +4050,8 @@ FS_API fs_result fs_file_flush(fs_file *pFile) {
   return fs_backend_file_flush(pBackend, pFile);
 }
 
-FS_API fs_result fs_file_get_info(fs_file *pFile, fs_file_info *pInfo) {
-  const fs_backend *pBackend;
+FS_API fs_result fs_file_get_info(fs_file* pFile, fs_file_info* pInfo) {
+  const fs_backend* pBackend;
 
   if (pInfo == NULL) {
     return FS_INVALID_ARGS; /* It doesn't make sense to call this without an
@@ -3739,7 +4070,7 @@ FS_API fs_result fs_file_get_info(fs_file *pFile, fs_file_info *pInfo) {
   return fs_backend_file_info(pBackend, pFile, pInfo);
 }
 
-FS_API fs_result fs_file_duplicate(fs_file *pFile, fs_file **ppDuplicate) {
+FS_API fs_result fs_file_duplicate(fs_file* pFile, fs_file** ppDuplicate) {
   fs_result result;
 
   if (ppDuplicate == NULL) {
@@ -3761,7 +4092,7 @@ FS_API fs_result fs_file_duplicate(fs_file *pFile, fs_file **ppDuplicate) {
       fs_get_backend_or_default(fs_file_get_fs(pFile)), pFile, *ppDuplicate);
 }
 
-FS_API void *fs_file_get_backend_data(fs_file *pFile) {
+FS_API void* fs_file_get_backend_data(fs_file* pFile) {
   if (pFile == NULL) {
     return NULL;
   }
@@ -3769,7 +4100,7 @@ FS_API void *fs_file_get_backend_data(fs_file *pFile) {
   return FS_OFFSET_PTR(pFile, sizeof(fs_file));
 }
 
-FS_API size_t fs_file_get_backend_data_size(fs_file *pFile) {
+FS_API size_t fs_file_get_backend_data_size(fs_file* pFile) {
   if (pFile == NULL) {
     return 0;
   }
@@ -3777,11 +4108,11 @@ FS_API size_t fs_file_get_backend_data_size(fs_file *pFile) {
   return pFile->backendDataSize;
 }
 
-FS_API fs_stream *fs_file_get_stream(fs_file *pFile) {
-  return (fs_stream *)pFile;
+FS_API fs_stream* fs_file_get_stream(fs_file* pFile) {
+  return (fs_stream*)pFile;
 }
 
-FS_API fs *fs_file_get_fs(fs_file *pFile) {
+FS_API fs* fs_file_get_fs(fs_file* pFile) {
   if (pFile == NULL) {
     return NULL;
   }
@@ -3801,7 +4132,7 @@ typedef struct fs_iterator_internal {
   size_t itemDataSize;
   size_t dataSize;
   size_t allocSize;
-  fs_iterator_item **ppItems;
+  fs_iterator_item** ppItems;
 } fs_iterator_internal;
 
 static size_t fs_iterator_item_sizeof(size_t nameLen) {
@@ -3809,12 +4140,12 @@ static size_t fs_iterator_item_sizeof(size_t nameLen) {
                   FS_SIZEOF_PTR); /* +1 for the null terminator. */
 }
 
-static char *fs_iterator_item_name(fs_iterator_item *pItem) {
-  return (char *)pItem + sizeof(*pItem);
+static char* fs_iterator_item_name(fs_iterator_item* pItem) {
+  return (char*)pItem + sizeof(*pItem);
 }
 
-static void
-fs_iterator_internal_resolve_public_members(fs_iterator_internal *pIterator) {
+static void fs_iterator_internal_resolve_public_members(
+    fs_iterator_internal* pIterator) {
   FS_ASSERT(pIterator != NULL);
 
   pIterator->base.pName =
@@ -3823,8 +4154,9 @@ fs_iterator_internal_resolve_public_members(fs_iterator_internal *pIterator) {
   pIterator->base.info = pIterator->ppItems[pIterator->itemIndex]->info;
 }
 
-static fs_iterator_item *
-fs_iterator_internal_find(fs_iterator_internal *pIterator, const char *pName) {
+static fs_iterator_item* fs_iterator_internal_find(
+    fs_iterator_internal* pIterator,
+    const char* pName) {
   /*
   We cannot use ppItems here because this function will be called before that
   has been set up. Instead we need to use a cursor and run through each item
@@ -3834,7 +4166,7 @@ fs_iterator_internal_find(fs_iterator_internal *pIterator, const char *pName) {
   size_t cursor = 0;
 
   for (iItem = 0; iItem < pIterator->itemCount; iItem += 1) {
-    fs_iterator_item *pItem = (fs_iterator_item *)FS_OFFSET_PTR(
+    fs_iterator_item* pItem = (fs_iterator_item*)FS_OFFSET_PTR(
         pIterator, sizeof(fs_iterator_internal) + cursor);
     if (fs_strncmp(fs_iterator_item_name(pItem), pName, pItem->nameLen) == 0) {
       return pItem;
@@ -3846,11 +4178,13 @@ fs_iterator_internal_find(fs_iterator_internal *pIterator, const char *pName) {
   return NULL;
 }
 
-static fs_iterator_internal *
-fs_iterator_internal_append(fs_iterator_internal *pIterator,
-                            fs_iterator *pOther, fs *pFS, int mode) {
+static fs_iterator_internal* fs_iterator_internal_append(
+    fs_iterator_internal* pIterator,
+    fs_iterator* pOther,
+    fs* pFS,
+    int mode) {
   size_t newItemSize;
-  fs_iterator_item *pNewItem;
+  fs_iterator_item* pNewItem;
 
   FS_ASSERT(pOther != NULL);
 
@@ -3876,28 +4210,28 @@ fs_iterator_internal_append(fs_iterator_internal *pIterator,
   /* At this point we're ready to append the item. */
   newItemSize = fs_iterator_item_sizeof(pOther->nameLen);
   if (pIterator == NULL ||
-      pIterator->dataSize + newItemSize + sizeof(fs_iterator_item *) >
+      pIterator->dataSize + newItemSize + sizeof(fs_iterator_item*) >
           pIterator->allocSize) {
-    fs_iterator_internal *pNewIterator;
+    fs_iterator_internal* pNewIterator;
     size_t newAllocSize;
 
     if (pIterator == NULL) {
       newAllocSize = 4096;
       if (newAllocSize <
-          (sizeof(*pIterator) + newItemSize + sizeof(fs_iterator_item *))) {
+          (sizeof(*pIterator) + newItemSize + sizeof(fs_iterator_item*))) {
         newAllocSize =
-            (sizeof(*pIterator) + newItemSize + sizeof(fs_iterator_item *));
+            (sizeof(*pIterator) + newItemSize + sizeof(fs_iterator_item*));
       }
     } else {
       newAllocSize = pIterator->allocSize * 2;
       if (newAllocSize <
-          (pIterator->dataSize + newItemSize + sizeof(fs_iterator_item *))) {
+          (pIterator->dataSize + newItemSize + sizeof(fs_iterator_item*))) {
         newAllocSize =
-            (pIterator->dataSize + newItemSize + sizeof(fs_iterator_item *));
+            (pIterator->dataSize + newItemSize + sizeof(fs_iterator_item*));
       }
     }
 
-    pNewIterator = (fs_iterator_internal *)fs_realloc(
+    pNewIterator = (fs_iterator_internal*)fs_realloc(
         pIterator, newAllocSize, fs_get_allocation_callbacks(pFS));
     if (pNewIterator == NULL) {
       return pIterator;
@@ -3913,7 +4247,7 @@ fs_iterator_internal_append(fs_iterator_internal *pIterator,
   }
 
   /* We can now copy the information over to the information. */
-  pNewItem = (fs_iterator_item *)FS_OFFSET_PTR(
+  pNewItem = (fs_iterator_item*)FS_OFFSET_PTR(
       pIterator, sizeof(fs_iterator_internal) + pIterator->itemDataSize);
   FS_COPY_MEMORY(fs_iterator_item_name(pNewItem), pOther->pName,
                  pOther->nameLen + 1); /* +1 for the null terminator. */
@@ -3921,18 +4255,19 @@ fs_iterator_internal_append(fs_iterator_internal *pIterator,
   pNewItem->info = pOther->info;
 
   pIterator->itemDataSize += newItemSize;
-  pIterator->dataSize += newItemSize + sizeof(fs_iterator_item *);
+  pIterator->dataSize += newItemSize + sizeof(fs_iterator_item*);
   pIterator->itemCount += 1;
 
   return pIterator;
 }
 
-static int fs_iterator_item_compare(void *pUserData, const void *pA,
-                                    const void *pB) {
-  fs_iterator_item *pItemA = *(fs_iterator_item **)pA;
-  fs_iterator_item *pItemB = *(fs_iterator_item **)pB;
-  const char *pNameA = fs_iterator_item_name(pItemA);
-  const char *pNameB = fs_iterator_item_name(pItemB);
+static int fs_iterator_item_compare(void* pUserData,
+                                    const void* pA,
+                                    const void* pB) {
+  fs_iterator_item* pItemA = *(fs_iterator_item**)pA;
+  fs_iterator_item* pItemB = *(fs_iterator_item**)pB;
+  const char* pNameA = fs_iterator_item_name(pItemA);
+  const char* pNameB = fs_iterator_item_name(pItemB);
   int compareResult;
 
   (void)pUserData;
@@ -3950,16 +4285,20 @@ static int fs_iterator_item_compare(void *pUserData, const void *pA,
   return compareResult;
 }
 
-static void fs_iterator_internal_sort(fs_iterator_internal *pIterator) {
-  fs_sort(pIterator->ppItems, pIterator->itemCount, sizeof(fs_iterator_item *),
+static void fs_iterator_internal_sort(fs_iterator_internal* pIterator) {
+  fs_sort(pIterator->ppItems, pIterator->itemCount, sizeof(fs_iterator_item*),
           fs_iterator_item_compare, NULL);
 }
 
-static fs_iterator_internal *fs_iterator_internal_gather(
-    fs_iterator_internal *pIterator, const fs_backend *pBackend, fs *pFS,
-    const char *pDirectoryPath, size_t directoryPathLen, int mode) {
+static fs_iterator_internal* fs_iterator_internal_gather(
+    fs_iterator_internal* pIterator,
+    const fs_backend* pBackend,
+    fs* pFS,
+    const char* pDirectoryPath,
+    size_t directoryPathLen,
+    int mode) {
   fs_result result;
-  fs_iterator *pInnerIterator;
+  fs_iterator* pInnerIterator;
 
   FS_ASSERT(pBackend != NULL);
 
@@ -4030,8 +4369,8 @@ static fs_iterator_internal *fs_iterator_internal_gather(
                 iDirPathSeg.pFullPath + iDirPathSeg.segmentOffset,
                 iDirPathSeg.segmentLength, iBackend.pExtension,
                 iBackend.extensionLen)) {
-          fs *pArchive;
-          fs_iterator *pArchiveIterator;
+          fs* pArchive;
+          fs_iterator* pArchiveIterator;
 
           isArchive = FS_TRUE;
 
@@ -4115,19 +4454,19 @@ static fs_iterator_internal *fs_iterator_internal_gather(
                     iBackend.pExtension, iBackend.extensionLen)) {
               /* Looks like an archive. We can load this one up and try
                * iterating from it. */
-              fs *pArchive;
-              fs_iterator *pArchiveIterator;
+              fs* pArchive;
+              fs_iterator* pArchiveIterator;
               char pArchivePathNTStack[1024];
-              char *pArchivePathNTHeap =
+              char* pArchivePathNTHeap =
                   NULL; /* <-- Must be initialized to null. */
-              char *pArchivePathNT;
+              char* pArchivePathNT;
               size_t archivePathLen;
 
               archivePathLen = iDirPathSeg.segmentOffset +
                                iDirPathSeg.segmentLength + 1 +
                                pInnerIterator->nameLen;
               if (archivePathLen >= sizeof(pArchivePathNTStack)) {
-                pArchivePathNTHeap = (char *)fs_malloc(
+                pArchivePathNTHeap = (char*)fs_malloc(
                     archivePathLen + 1, fs_get_allocation_callbacks(pFS));
                 if (pArchivePathNTHeap == NULL) {
                   fs_backend_free_iterator(pBackend, pInnerIterator);
@@ -4139,9 +4478,9 @@ static fs_iterator_internal *fs_iterator_internal_gather(
                 pArchivePathNT = pArchivePathNTStack;
               }
 
-              FS_COPY_MEMORY(pArchivePathNT, iDirPathSeg.pFullPath,
-                             iDirPathSeg.segmentOffset +
-                                 iDirPathSeg.segmentLength);
+              FS_COPY_MEMORY(
+                  pArchivePathNT, iDirPathSeg.pFullPath,
+                  iDirPathSeg.segmentOffset + iDirPathSeg.segmentLength);
               pArchivePathNT[iDirPathSeg.segmentOffset +
                              iDirPathSeg.segmentLength] = '/';
               FS_COPY_MEMORY(pArchivePathNT + iDirPathSeg.segmentOffset +
@@ -4190,12 +4529,14 @@ static fs_iterator_internal *fs_iterator_internal_gather(
   return pIterator;
 }
 
-FS_API fs_iterator *fs_first_ex(fs *pFS, const char *pDirectoryPath,
-                                size_t directoryPathLen, int mode) {
-  fs_iterator_internal *pIterator =
+FS_API fs_iterator* fs_first_ex(fs* pFS,
+                                const char* pDirectoryPath,
+                                size_t directoryPathLen,
+                                int mode) {
+  fs_iterator_internal* pIterator =
       NULL; /* This is the iterator we'll eventually be returning. */
-  const fs_backend *pBackend;
-  fs_iterator *pBackendIterator;
+  const fs_backend* pBackend;
+  fs_iterator* pBackendIterator;
   fs_result result;
   size_t cursor;
   size_t iItem;
@@ -4247,13 +4588,13 @@ FS_API fs_iterator *fs_first_ex(fs *pFS, const char *pDirectoryPath,
         next mount point.
         */
         char pDirSubPathCleanStack[1024];
-        char *pDirSubPathCleanHeap = NULL;
-        char *pDirSubPathClean;
+        char* pDirSubPathCleanHeap = NULL;
+        char* pDirSubPathClean;
         int dirSubPathCleanLen;
         unsigned int cleanOptions = (mode & FS_NO_ABOVE_ROOT_NAVIGATION);
 
         size_t dirSubPathLen;
-        const char *pDirSubPath =
+        const char* pDirSubPath =
             fs_path_trim_base(pDirectoryPath, directoryPathLen,
                               iMountPoint.pMountPointPath, FS_NULL_TERMINATED);
         if (pDirSubPath == NULL) {
@@ -4281,7 +4622,7 @@ FS_API fs_iterator *fs_first_ex(fs *pFS, const char *pDirectoryPath,
           }
 
           if (dirSubPathCleanLen >= (int)sizeof(pDirSubPathCleanStack)) {
-            pDirSubPathCleanHeap = (char *)fs_malloc(
+            pDirSubPathCleanHeap = (char*)fs_malloc(
                 dirSubPathCleanLen + 1, fs_get_allocation_callbacks(pFS));
             if (pDirSubPathCleanHeap == NULL) {
               return NULL; /* Out of memory. */
@@ -4295,9 +4636,8 @@ FS_API fs_iterator *fs_first_ex(fs *pFS, const char *pDirectoryPath,
             pDirSubPathClean = pDirSubPathCleanStack;
           }
         } else {
-          pDirSubPathClean =
-              (char *)pDirSubPath; /* Safe cast. Will not be modified past this
-                                      point. */
+          pDirSubPathClean = (char*)pDirSubPath; /* Safe cast. Will not be
+                                                    modified past this point. */
           dirSubPathCleanLen = (int)dirSubPathLen;
         }
 
@@ -4319,8 +4659,8 @@ FS_API fs_iterator *fs_first_ex(fs *pFS, const char *pDirectoryPath,
           contents of the directory.
           */
           char pInterpolatedPathStack[1024];
-          char *pInterpolatedPathHeap = NULL;
-          char *pInterpolatedPath;
+          char* pInterpolatedPathHeap = NULL;
+          char* pInterpolatedPath;
           int interpolatedPathLen;
 
           interpolatedPathLen = fs_path_append(
@@ -4330,10 +4670,10 @@ FS_API fs_iterator *fs_first_ex(fs *pFS, const char *pDirectoryPath,
           if (interpolatedPathLen > 0 &&
               (size_t)interpolatedPathLen >= sizeof(pInterpolatedPathStack)) {
             /* Not enough room on the stack. Allocate on the heap. */
-            pInterpolatedPathHeap = (char *)fs_malloc(
+            pInterpolatedPathHeap = (char*)fs_malloc(
                 interpolatedPathLen + 1, fs_get_allocation_callbacks(pFS));
             if (pInterpolatedPathHeap == NULL) {
-              fs_free_iterator((fs_iterator *)pIterator);
+              fs_free_iterator((fs_iterator*)pIterator);
               return NULL; /* Out of memory. */
             }
 
@@ -4373,13 +4713,13 @@ FS_API fs_iterator *fs_first_ex(fs *pFS, const char *pDirectoryPath,
 
   /* Set up pointers. The list of pointers is located at the end of the array.
    */
-  pIterator->ppItems = (fs_iterator_item **)FS_OFFSET_PTR(
-      pIterator, pIterator->dataSize -
-                     (pIterator->itemCount * sizeof(fs_iterator_item *)));
+  pIterator->ppItems = (fs_iterator_item**)FS_OFFSET_PTR(
+      pIterator,
+      pIterator->dataSize - (pIterator->itemCount * sizeof(fs_iterator_item*)));
 
   cursor = 0;
   for (iItem = 0; iItem < pIterator->itemCount; iItem += 1) {
-    pIterator->ppItems[iItem] = (fs_iterator_item *)FS_OFFSET_PTR(
+    pIterator->ppItems[iItem] = (fs_iterator_item*)FS_OFFSET_PTR(
         pIterator, sizeof(fs_iterator_internal) + cursor);
     cursor += fs_iterator_item_sizeof(pIterator->ppItems[iItem]->nameLen);
   }
@@ -4393,15 +4733,15 @@ FS_API fs_iterator *fs_first_ex(fs *pFS, const char *pDirectoryPath,
   pIterator->itemIndex = 0;
   fs_iterator_internal_resolve_public_members(pIterator);
 
-  return (fs_iterator *)pIterator;
+  return (fs_iterator*)pIterator;
 }
 
-FS_API fs_iterator *fs_first(fs *pFS, const char *pDirectoryPath, int mode) {
+FS_API fs_iterator* fs_first(fs* pFS, const char* pDirectoryPath, int mode) {
   return fs_first_ex(pFS, pDirectoryPath, FS_NULL_TERMINATED, mode);
 }
 
-FS_API fs_iterator *fs_next(fs_iterator *pIterator) {
-  fs_iterator_internal *pIteratorInternal = (fs_iterator_internal *)pIterator;
+FS_API fs_iterator* fs_next(fs_iterator* pIterator) {
+  fs_iterator_internal* pIteratorInternal = (fs_iterator_internal*)pIterator;
 
   if (pIteratorInternal == NULL) {
     return NULL;
@@ -4419,7 +4759,7 @@ FS_API fs_iterator *fs_next(fs_iterator *pIterator) {
   return pIterator;
 }
 
-FS_API void fs_free_iterator(fs_iterator *pIterator) {
+FS_API void fs_free_iterator(fs_iterator* pIterator) {
   if (pIterator == NULL) {
     return;
   }
@@ -4427,23 +4767,22 @@ FS_API void fs_free_iterator(fs_iterator *pIterator) {
   fs_free(pIterator, fs_get_allocation_callbacks(pIterator->pFS));
 }
 
-FS_API fs_result fs_mount(fs *pFS, const char *pPathToMount,
-                          const char *pMountPoint, fs_mount_priority priority) {
+static fs_result fs_mount_read(fs* pFS,
+                               const char* pActualPath,
+                               const char* pVirtualPath,
+                               int options) {
   fs_result result;
   fs_mount_list_iterator iterator;
   fs_result iteratorResult;
-  fs_mount_list *pMountPoints;
-  fs_mount_point *pNewMountPoint;
+  fs_mount_list* pMountPoints;
+  fs_mount_point* pNewMountPoint;
   fs_file_info fileInfo;
   int openMode;
 
-  if (pFS == NULL || pPathToMount == NULL) {
-    return FS_INVALID_ARGS;
-  }
-
-  if (pMountPoint == NULL) {
-    pMountPoint = "";
-  }
+  FS_ASSERT(pFS != NULL);
+  FS_ASSERT(pActualPath != NULL);
+  FS_ASSERT(pVirtualPath != NULL);
+  FS_ASSERT((options & FS_READ) == FS_READ);
 
   /*
   The first thing we're going to do is check for duplicates. We allow for the
@@ -4454,8 +4793,8 @@ FS_API fs_result fs_mount(fs *pFS, const char *pPathToMount,
   for (iteratorResult = fs_mount_list_first(pFS->pReadMountPoints, &iterator);
        iteratorResult == FS_SUCCESS;
        iteratorResult = fs_mount_list_next(&iterator)) {
-    if (strcmp(pPathToMount, iterator.pPath) == 0 &&
-        strcmp(pMountPoint, iterator.pMountPointPath) == 0) {
+    if (strcmp(pActualPath, iterator.pPath) == 0 &&
+        strcmp(pVirtualPath, iterator.pMountPointPath) == 0) {
       return FS_SUCCESS; /* Just pretend we're successful. */
     }
   }
@@ -4465,9 +4804,12 @@ FS_API fs_result fs_mount(fs *pFS, const char *pPathToMount,
   be either adding it to the end of the list, or to the beginning of the list
   depending on the priority.
   */
-  pMountPoints = fs_mount_list_alloc(
-      pFS->pReadMountPoints, pPathToMount, pMountPoint, priority,
-      fs_get_allocation_callbacks(pFS), &pNewMountPoint);
+  pMountPoints =
+      fs_mount_list_alloc(pFS->pReadMountPoints, pActualPath, pVirtualPath,
+                          ((options & FS_LOWEST_PRIORITY) == FS_LOWEST_PRIORITY)
+                              ? FS_MOUNT_PRIORITY_LOWEST
+                              : FS_MOUNT_PRIORITY_HIGHEST,
+                          fs_get_allocation_callbacks(pFS), &pNewMountPoint);
   if (pMountPoints == NULL) {
     return FS_OUT_OF_MEMORY;
   }
@@ -4484,7 +4826,7 @@ FS_API fs_result fs_mount(fs *pFS, const char *pPathToMount,
    * will attempt to read from mounts when we're in the process of trying to add
    * one (this function). */
   result = fs_backend_info(fs_get_backend_or_default(pFS), pFS,
-                           (pPathToMount[0] != '\0') ? pPathToMount : ".",
+                           (pActualPath[0] != '\0') ? pActualPath : ".",
                            FS_IGNORE_MOUNTS, &fileInfo);
   if (result != FS_SUCCESS) {
     return result;
@@ -4495,7 +4837,7 @@ FS_API fs_result fs_mount(fs *pFS, const char *pPathToMount,
     pNewMountPoint->closeArchiveOnUnmount = FS_FALSE;
   } else {
     result =
-        fs_open_archive(pFS, pPathToMount, openMode, &pNewMountPoint->pArchive);
+        fs_open_archive(pFS, pActualPath, openMode, &pNewMountPoint->pArchive);
     if (result != FS_SUCCESS) {
       return result;
     }
@@ -4506,18 +4848,22 @@ FS_API fs_result fs_mount(fs *pFS, const char *pPathToMount,
   return FS_SUCCESS;
 }
 
-FS_API fs_result fs_unmount(fs *pFS, const char *pPathToMount_NotMountPoint) {
+FS_API fs_result fs_unmount_read(fs* pFS,
+                                 const char* pActualPath,
+                                 int options) {
   fs_result iteratorResult;
   fs_mount_list_iterator iterator;
 
-  if (pFS == NULL || pPathToMount_NotMountPoint == NULL) {
+  if (pFS == NULL || pActualPath == NULL) {
     return FS_INVALID_ARGS;
   }
 
+  FS_UNUSED(options);
+
   for (iteratorResult = fs_mount_list_first(pFS->pReadMountPoints, &iterator);
-       iteratorResult == FS_SUCCESS;
+       iteratorResult == FS_SUCCESS && !fs_mount_list_at_end(&iterator);
        /*iteratorResult = fs_mount_list_next(&iterator)*/) {
-    if (strcmp(pPathToMount_NotMountPoint, iterator.pPath) == 0) {
+    if (strcmp(pActualPath, iterator.pPath) == 0) {
       if (iterator.internal.pMountPoint->closeArchiveOnUnmount) {
         fs_close_archive(iterator.pArchive);
       }
@@ -4540,106 +4886,40 @@ FS_API fs_result fs_unmount(fs *pFS, const char *pPathToMount_NotMountPoint) {
   return FS_SUCCESS;
 }
 
-FS_API fs_result fs_mount_fs(fs *pFS, fs *pOtherFS, const char *pMountPoint,
-                             fs_mount_priority priority) {
-  fs_result iteratorResult;
+static fs_result fs_mount_write(fs* pFS,
+                                const char* pActualPath,
+                                const char* pVirtualPath,
+                                int options) {
   fs_mount_list_iterator iterator;
-  fs_mount_list *pMountPoints;
-  fs_mount_point *pNewMountPoint;
+  fs_result iteratorResult;
+  fs_mount_point* pNewMountPoint;
+  fs_mount_list* pMountList;
 
-  if (pFS == NULL || pOtherFS == NULL) {
+  if (pFS == NULL || pActualPath == NULL) {
     return FS_INVALID_ARGS;
   }
 
-  if (pMountPoint == NULL) {
-    pMountPoint = "";
-  }
-
-  /*
-  We don't allow duplicates. An archive can be bound to multiple mount points,
-  but we don't want to have the same archive mounted to the same mount point
-  multiple times.
-  */
-  for (iteratorResult = fs_mount_list_first(pFS->pReadMountPoints, &iterator);
-       iteratorResult == FS_SUCCESS;
-       iteratorResult = fs_mount_list_next(&iterator)) {
-    if (pOtherFS == iterator.pArchive &&
-        strcmp(pMountPoint, iterator.pMountPointPath) == 0) {
-      return FS_SUCCESS; /* Just pretend we're successful. */
-    }
-  }
-
-  /*
-  Getting here means we're not mounting a duplicate so we can now add it. We'll
-  be either adding it to the end of the list, or to the beginning of the list
-  depending on the priority.
-  */
-  pMountPoints =
-      fs_mount_list_alloc(pFS->pReadMountPoints, "", pMountPoint, priority,
-                          fs_get_allocation_callbacks(pFS), &pNewMountPoint);
-  if (pMountPoints == NULL) {
-    return FS_OUT_OF_MEMORY;
-  }
-
-  pFS->pReadMountPoints = pMountPoints;
-
-  pNewMountPoint->pArchive = pOtherFS;
-  pNewMountPoint->closeArchiveOnUnmount = FS_FALSE;
-
-  return FS_SUCCESS;
-}
-
-FS_API fs_result fs_unmount_fs(fs *pFS, fs *pOtherFS) {
-  fs_result iteratorResult;
-  fs_mount_list_iterator iterator;
-
-  if (pFS == NULL || pOtherFS == NULL) {
-    return FS_INVALID_ARGS;
-  }
-
-  for (iteratorResult = fs_mount_list_first(pFS->pReadMountPoints, &iterator);
-       iteratorResult == FS_SUCCESS;
-       iteratorResult = fs_mount_list_next(&iterator)) {
-    if (iterator.pArchive == pOtherFS) {
-      fs_mount_list_remove(pFS->pReadMountPoints,
-                           iterator.internal.pMountPoint);
-      return FS_SUCCESS;
-    }
-  }
-
-  return FS_SUCCESS;
-}
-
-FS_API fs_result fs_mount_write(fs *pFS, const char *pPathToMount,
-                                const char *pMountPoint,
-                                fs_mount_priority priority) {
-  fs_mount_list_iterator iterator;
-  fs_result iteratorResult;
-  fs_mount_point *pNewMountPoint;
-  fs_mount_list *pMountList;
-
-  if (pFS == NULL || pPathToMount == NULL) {
-    return FS_INVALID_ARGS;
-  }
-
-  if (pMountPoint == NULL) {
-    pMountPoint = "";
+  if (pVirtualPath == NULL) {
+    pVirtualPath = "";
   }
 
   /* Like with regular read mount points we'll want to check for duplicates. */
   for (iteratorResult = fs_mount_list_first(pFS->pWriteMountPoints, &iterator);
        iteratorResult == FS_SUCCESS;
        iteratorResult = fs_mount_list_next(&iterator)) {
-    if (strcmp(pPathToMount, iterator.pPath) == 0 &&
-        strcmp(pMountPoint, iterator.pMountPointPath) == 0) {
+    if (strcmp(pActualPath, iterator.pPath) == 0 &&
+        strcmp(pVirtualPath, iterator.pMountPointPath) == 0) {
       return FS_SUCCESS; /* Just pretend we're successful. */
     }
   }
 
   /* Getting here means we're not mounting a duplicate so we can now add it. */
-  pMountList = fs_mount_list_alloc(
-      pFS->pWriteMountPoints, pPathToMount, pMountPoint, priority,
-      fs_get_allocation_callbacks(pFS), &pNewMountPoint);
+  pMountList =
+      fs_mount_list_alloc(pFS->pWriteMountPoints, pActualPath, pVirtualPath,
+                          ((options & FS_LOWEST_PRIORITY) == FS_LOWEST_PRIORITY)
+                              ? FS_MOUNT_PRIORITY_LOWEST
+                              : FS_MOUNT_PRIORITY_HIGHEST,
+                          fs_get_allocation_callbacks(pFS), &pNewMountPoint);
   if (pMountList == NULL) {
     return FS_OUT_OF_MEMORY;
   }
@@ -4650,22 +4930,30 @@ FS_API fs_result fs_mount_write(fs *pFS, const char *pPathToMount,
   pNewMountPoint->pArchive = NULL;
   pNewMountPoint->closeArchiveOnUnmount = FS_FALSE;
 
+  /* Since we'll be wanting to write out files to the mount point we should
+   * ensure the folder actually exists. */
+  if ((options & FS_NO_CREATE_DIRS) == 0) {
+    fs_mkdir(pFS, pActualPath, FS_IGNORE_MOUNTS);
+  }
+
   return FS_SUCCESS;
 }
 
-FS_API fs_result fs_unmount_write(fs *pFS,
-                                  const char *pPathToMount_NotMountPoint) {
+static fs_result fs_unmount_write(fs* pFS,
+                                  const char* pActualPath,
+                                  int options) {
   fs_result iteratorResult;
   fs_mount_list_iterator iterator;
 
-  if (pFS == NULL || pPathToMount_NotMountPoint == NULL) {
-    return FS_INVALID_ARGS;
-  }
+  FS_ASSERT(pFS != NULL);
+  FS_ASSERT(pActualPath != NULL);
+
+  FS_UNUSED(options);
 
   for (iteratorResult = fs_mount_list_first(pFS->pWriteMountPoints, &iterator);
        iteratorResult == FS_SUCCESS;
        /*iteratorResult = fs_mount_list_next(&iterator)*/) {
-    if (strcmp(pPathToMount_NotMountPoint, iterator.pPath) == 0) {
+    if (strcmp(pActualPath, iterator.pPath) == 0) {
       fs_mount_list_remove(pFS->pWriteMountPoints,
                            iterator.internal.pMountPoint);
 
@@ -4684,18 +4972,300 @@ FS_API fs_result fs_unmount_write(fs *pFS,
   return FS_SUCCESS;
 }
 
-FS_API fs_result fs_file_read_to_end(fs_file *pFile, fs_format format,
-                                     void **ppData, size_t *pDataSize) {
+FS_API fs_result fs_mount(fs* pFS,
+                          const char* pActualPath,
+                          const char* pVirtualPath,
+                          int options) {
+  if (pFS == NULL || pActualPath == NULL) {
+    return FS_INVALID_ARGS;
+  }
+
+  if (pVirtualPath == NULL) {
+    pVirtualPath = "";
+  }
+
+  /* At least READ or WRITE must be specified. */
+  if ((options & (FS_READ | FS_WRITE)) == 0) {
+    return FS_INVALID_ARGS;
+  }
+
+  if ((options & FS_READ) == FS_READ) {
+    fs_result result = fs_mount_read(pFS, pActualPath, pVirtualPath, options);
+    if (result != FS_SUCCESS) {
+      return result;
+    }
+  }
+
+  if ((options & FS_WRITE) == FS_WRITE) {
+    fs_result result = fs_mount_write(pFS, pActualPath, pVirtualPath, options);
+    if (result != FS_SUCCESS) {
+      return result;
+    }
+  }
+
+  return FS_SUCCESS;
+}
+
+FS_API fs_result fs_unmount(fs* pFS,
+                            const char* pPathToMount_NotMountPoint,
+                            int options) {
+  fs_result result;
+
+  if (pFS == NULL || pPathToMount_NotMountPoint == NULL) {
+    return FS_INVALID_ARGS;
+  }
+
+  if ((options & FS_READ) == FS_READ) {
+    result = fs_unmount_read(pFS, pPathToMount_NotMountPoint, options);
+    if (result != FS_SUCCESS) {
+      return result;
+    }
+  }
+
+  if ((options & FS_WRITE) == FS_WRITE) {
+    result = fs_unmount_write(pFS, pPathToMount_NotMountPoint, options);
+    if (result != FS_SUCCESS) {
+      return result;
+    }
+  }
+
+  return FS_SUCCESS;
+}
+
+static size_t fs_sysdir_append(fs_sysdir_type type,
+                               char* pDst,
+                               size_t dstCap,
+                               const char* pSubDir) {
+  size_t sysDirLen;
+  size_t subDirLen;
+  size_t totalLen;
+
+  if (pDst == NULL || pSubDir == NULL) {
+    return 0;
+  }
+
+  sysDirLen = fs_sysdir(type, pDst, dstCap);
+  if (sysDirLen == 0) {
+    return 0; /* Failed to retrieve the system directory. */
+  }
+
+  subDirLen = strlen(pSubDir);
+
+  totalLen = sysDirLen + 1 + subDirLen; /* +1 for the separator. */
+  if (totalLen < dstCap) {
+    pDst[sysDirLen] = '/';
+    FS_COPY_MEMORY(pDst + sysDirLen + 1, pSubDir, subDirLen);
+    pDst[totalLen] = '\0';
+  }
+
+  return totalLen;
+}
+
+FS_API fs_result fs_mount_sysdir(fs* pFS,
+                                 fs_sysdir_type type,
+                                 const char* pSubDir,
+                                 const char* pVirtualPath,
+                                 int options) {
+  char pPathToMountStack[1024];
+  char* pPathToMountHeap = NULL;
+  char* pPathToMount;
+  size_t pathToMountLen;
+  fs_result result;
+
+  if (pFS == NULL) {
+    return FS_INVALID_ARGS;
+  }
+
+  if (pVirtualPath == NULL) {
+    pVirtualPath = "";
+  }
+
+  /*
+  We're enforcing a sub-directory with this function to encourage applications
+  to use good practice with with directory structures.
+  */
+  if (pSubDir == NULL || pSubDir[0] == '\0') {
+    return FS_INVALID_ARGS;
+  }
+
+  pathToMountLen = fs_sysdir_append(type, pPathToMountStack,
+                                    sizeof(pPathToMountStack), pSubDir);
+  if (pathToMountLen == 0) {
+    return FS_ERROR; /* Failed to retrieve the system directory. */
+  }
+
+  if (pathToMountLen < sizeof(pPathToMountStack)) {
+    pPathToMount = pPathToMountStack;
+  } else {
+    pathToMountLen += 1; /* +1 for the null terminator. */
+
+    pPathToMountHeap =
+        (char*)fs_malloc(pathToMountLen, fs_get_allocation_callbacks(pFS));
+    if (pPathToMountHeap == NULL) {
+      return FS_OUT_OF_MEMORY;
+    }
+
+    fs_sysdir_append(type, pPathToMountHeap, pathToMountLen, pSubDir);
+    pPathToMount = pPathToMountHeap;
+  }
+
+  /* At this point we should have the path we want to mount. Now we can do the
+   * actual mounting. */
+  result = fs_mount(pFS, pPathToMount, pVirtualPath, options);
+  fs_free(pPathToMountHeap, fs_get_allocation_callbacks(pFS));
+
+  return result;
+}
+
+FS_API fs_result fs_unmount_sysdir(fs* pFS,
+                                   fs_sysdir_type type,
+                                   const char* pSubDir,
+                                   int options) {
+  char pPathToMountStack[1024];
+  char* pPathToMountHeap = NULL;
+  char* pPathToMount;
+  size_t pathToMountLen;
+  fs_result result;
+
+  if (pFS == NULL) {
+    return FS_INVALID_ARGS;
+  }
+
+  /*
+  We're enforcing a sub-directory with this function to encourage applications
+  to use good practice with with directory structures.
+  */
+  if (pSubDir == NULL || pSubDir[0] == '\0') {
+    return FS_INVALID_ARGS;
+  }
+
+  pathToMountLen = fs_sysdir_append(type, pPathToMountStack,
+                                    sizeof(pPathToMountStack), pSubDir);
+  if (pathToMountLen == 0) {
+    return FS_ERROR; /* Failed to retrieve the system directory. */
+  }
+
+  if (pathToMountLen < sizeof(pPathToMountStack)) {
+    pPathToMount = pPathToMountStack;
+  } else {
+    pathToMountLen += 1; /* +1 for the null terminator. */
+
+    pPathToMountHeap =
+        (char*)fs_malloc(pathToMountLen, fs_get_allocation_callbacks(pFS));
+    if (pPathToMountHeap == NULL) {
+      return FS_OUT_OF_MEMORY;
+    }
+
+    fs_sysdir_append(type, pPathToMountHeap, pathToMountLen, pSubDir);
+    pPathToMount = pPathToMountHeap;
+  }
+
+  /* At this point we should have the path we want to mount. Now we can do the
+   * actual mounting. */
+  result = fs_unmount(pFS, pPathToMount, options);
+
+  fs_free(pPathToMountHeap, fs_get_allocation_callbacks(pFS));
+  return result;
+}
+
+FS_API fs_result fs_mount_fs(fs* pFS,
+                             fs* pOtherFS,
+                             const char* pVirtualPath,
+                             int options) {
+  fs_result iteratorResult;
+  fs_mount_list_iterator iterator;
+  fs_mount_list* pMountPoints;
+  fs_mount_point* pNewMountPoint;
+
+  if (pFS == NULL || pOtherFS == NULL) {
+    return FS_INVALID_ARGS;
+  }
+
+  if (pVirtualPath == NULL) {
+    pVirtualPath = "";
+  }
+
+  /* We don't support write mode when mounting an FS. */
+  if ((options & FS_WRITE) == FS_WRITE) {
+    return FS_INVALID_ARGS;
+  }
+
+  /*
+  We don't allow duplicates. An archive can be bound to multiple mount points,
+  but we don't want to have the same archive mounted to the same mount point
+  multiple times.
+  */
+  for (iteratorResult = fs_mount_list_first(pFS->pReadMountPoints, &iterator);
+       iteratorResult == FS_SUCCESS;
+       iteratorResult = fs_mount_list_next(&iterator)) {
+    if (pOtherFS == iterator.pArchive &&
+        strcmp(pVirtualPath, iterator.pMountPointPath) == 0) {
+      return FS_SUCCESS; /* Just pretend we're successful. */
+    }
+  }
+
+  /*
+  Getting here means we're not mounting a duplicate so we can now add it. We'll
+  be either adding it to the end of the list, or to the beginning of the list
+  depending on the priority.
+  */
+  pMountPoints =
+      fs_mount_list_alloc(pFS->pReadMountPoints, "", pVirtualPath,
+                          ((options & FS_LOWEST_PRIORITY) == FS_LOWEST_PRIORITY)
+                              ? FS_MOUNT_PRIORITY_LOWEST
+                              : FS_MOUNT_PRIORITY_HIGHEST,
+                          fs_get_allocation_callbacks(pFS), &pNewMountPoint);
+  if (pMountPoints == NULL) {
+    return FS_OUT_OF_MEMORY;
+  }
+
+  pFS->pReadMountPoints = pMountPoints;
+
+  pNewMountPoint->pArchive = pOtherFS;
+  pNewMountPoint->closeArchiveOnUnmount = FS_FALSE;
+
+  return FS_SUCCESS;
+}
+
+FS_API fs_result fs_unmount_fs(fs* pFS, fs* pOtherFS, int options) {
+  fs_result iteratorResult;
+  fs_mount_list_iterator iterator;
+
+  if (pFS == NULL || pOtherFS == NULL) {
+    return FS_INVALID_ARGS;
+  }
+
+  FS_UNUSED(options);
+
+  for (iteratorResult = fs_mount_list_first(pFS->pReadMountPoints, &iterator);
+       iteratorResult == FS_SUCCESS;
+       iteratorResult = fs_mount_list_next(&iterator)) {
+    if (iterator.pArchive == pOtherFS) {
+      fs_mount_list_remove(pFS->pReadMountPoints,
+                           iterator.internal.pMountPoint);
+      return FS_SUCCESS;
+    }
+  }
+
+  return FS_SUCCESS;
+}
+
+FS_API fs_result fs_file_read_to_end(fs_file* pFile,
+                                     fs_format format,
+                                     void** ppData,
+                                     size_t* pDataSize) {
   return fs_stream_read_to_end(
       fs_file_get_stream(pFile), format,
       fs_get_allocation_callbacks(fs_file_get_fs(pFile)), ppData, pDataSize);
 }
 
-FS_API fs_result fs_file_open_and_read(fs *pFS, const char *pFilePath,
-                                       fs_format format, void **ppData,
-                                       size_t *pDataSize) {
+FS_API fs_result fs_file_open_and_read(fs* pFS,
+                                       const char* pFilePath,
+                                       fs_format format,
+                                       void** ppData,
+                                       size_t* pDataSize) {
   fs_result result;
-  fs_file *pFile;
+  fs_file* pFile;
 
   if (pFilePath == NULL || ppData == NULL || pDataSize == NULL) {
     return FS_INVALID_ARGS;
@@ -4713,10 +5283,12 @@ FS_API fs_result fs_file_open_and_read(fs *pFS, const char *pFilePath,
   return result;
 }
 
-FS_API fs_result fs_file_open_and_write(fs *pFS, const char *pFilePath,
-                                        void *pData, size_t dataSize) {
+FS_API fs_result fs_file_open_and_write(fs* pFS,
+                                        const char* pFilePath,
+                                        void* pData,
+                                        size_t dataSize) {
   fs_result result;
-  fs_file *pFile;
+  fs_file* pFile;
 
   if (pFilePath == NULL || pData == NULL) {
     return FS_INVALID_ARGS;
@@ -4743,8 +5315,8 @@ FS_API fs_result fs_file_open_and_write(fs *pFS, const char *pFilePath,
  ******************************************************************************/
 #ifndef FS_NO_STDIO
 #include <stdio.h>
-#include <sys/stat.h>
 #include <wchar.h> /* For wcstombs(). */
+#include <sys/stat.h>
 
 #if defined(_WIN32)
 #include <direct.h> /* For _mkdir() */
@@ -4762,8 +5334,9 @@ FS_API fs_result fs_file_open_and_write(fs *pFS, const char *pFilePath,
 #endif
 #endif
 
-static int fs_fopen(FILE **ppFile, const char *pFilePath,
-                    const char *pOpenMode) {
+static int fs_fopen(FILE** ppFile,
+                    const char* pFilePath,
+                    const char* pOpenMode) {
 #if defined(_MSC_VER) && _MSC_VER >= 1400
   int err;
 #endif
@@ -4785,7 +5358,7 @@ static int fs_fopen(FILE **ppFile, const char *pFilePath,
 #if defined(_WIN32) || defined(__APPLE__)
   *ppFile = fopen(pFilePath, pOpenMode);
 #else
-#if defined(_FILE_OFFSET_BITS) && _FILE_OFFSET_BITS == 64 &&                   \
+#if defined(_FILE_OFFSET_BITS) && _FILE_OFFSET_BITS == 64 && \
     defined(_LARGEFILE64_SOURCE)
   *ppFile = fopen64(pFilePath, pOpenMode);
 #else
@@ -4822,14 +5395,15 @@ notice your compiler not detecting this properly I'm happy to look at adding
 support.
 */
 #if defined(_WIN32)
-#if defined(_MSC_VER) || defined(__MINGW64__) ||                               \
+#if defined(_MSC_VER) || defined(__MINGW64__) || \
     (!defined(__STRICT_ANSI__) && !defined(_NO_EXT_KEYS))
 #define FS_HAS_WFOPEN
 #endif
 #endif
 
-int fs_wfopen(FILE **ppFile, const wchar_t *pFilePath,
-              const wchar_t *pOpenMode) {
+int fs_wfopen(FILE** ppFile,
+              const wchar_t* pFilePath,
+              const wchar_t* pOpenMode) {
   if (ppFile != NULL) {
     *ppFile = NULL; /* Safety. */
   }
@@ -4869,8 +5443,8 @@ int fs_wfopen(FILE **ppFile, const wchar_t *pFilePath,
     */
     mbstate_t mbs;
     size_t lenMB;
-    const wchar_t *pFilePathTemp = pFilePath;
-    char *pFilePathMB = NULL;
+    const wchar_t* pFilePathTemp = pFilePath;
+    char* pFilePathMB = NULL;
     char pOpenModeMB[32] = {0};
 
     /* Get the length first. */
@@ -4880,7 +5454,7 @@ int fs_wfopen(FILE **ppFile, const wchar_t *pFilePath,
       return errno;
     }
 
-    pFilePathMB = (char *)fs_malloc(lenMB + 1, NULL);
+    pFilePathMB = (char*)fs_malloc(lenMB + 1, NULL);
     if (pFilePathMB == NULL) {
       return ENOMEM;
     }
@@ -4917,7 +5491,7 @@ int fs_wfopen(FILE **ppFile, const wchar_t *pFilePath,
   return 0;
 }
 
-static fs_file_info fs_file_info_from_stat(struct stat *pStat) {
+static fs_file_info fs_file_info_from_stat(struct stat* pStat) {
   fs_file_info info;
 
   FS_ZERO_OBJECT(&info);
@@ -4931,7 +5505,7 @@ static fs_file_info fs_file_info_from_stat(struct stat *pStat) {
 }
 
 #if defined(_WIN32)
-static fs_uint64 fs_FILETIME_to_unix(const FILETIME *pFT) {
+static fs_uint64 fs_FILETIME_to_unix(const FILETIME* pFT) {
   ULARGE_INTEGER li;
 
   li.HighPart = pFT->dwHighDateTime;
@@ -4942,8 +5516,8 @@ static fs_uint64 fs_FILETIME_to_unix(const FILETIME *pFT) {
                  11644473600UL); /* Convert from Windows epoch to Unix epoch. */
 }
 
-static fs_file_info
-fs_file_info_from_WIN32_FIND_DATAW(const WIN32_FIND_DATAW *pFD) {
+static fs_file_info fs_file_info_from_WIN32_FIND_DATAW(
+    const WIN32_FIND_DATAW* pFD) {
   fs_file_info info;
 
   FS_ZERO_OBJECT(&info);
@@ -4960,21 +5534,22 @@ fs_file_info_from_WIN32_FIND_DATAW(const WIN32_FIND_DATAW *pFD) {
 
 typedef struct fs_stdio_registered_file {
   size_t pathLen;
-  FILE *pFile;
+  FILE* pFile;
 } fs_stdio_registered_file;
 
 typedef struct fs_stdio {
   int _unused;
 } fs_stdio;
 
-static size_t fs_alloc_size_stdio(const void *pBackendConfig) {
+static size_t fs_alloc_size_stdio(const void* pBackendConfig) {
   FS_UNUSED(pBackendConfig);
 
   return sizeof(fs_stdio);
 }
 
-static fs_result fs_init_stdio(fs *pFS, const void *pBackendConfig,
-                               fs_stream *pStream) {
+static fs_result fs_init_stdio(fs* pFS,
+                               const void* pBackendConfig,
+                               fs_stream* pStream) {
   FS_UNUSED(pFS);
   FS_UNUSED(pBackendConfig);
   FS_UNUSED(pStream);
@@ -4982,12 +5557,12 @@ static fs_result fs_init_stdio(fs *pFS, const void *pBackendConfig,
   return FS_SUCCESS;
 }
 
-static void fs_uninit_stdio(fs *pFS) {
+static void fs_uninit_stdio(fs* pFS) {
   FS_UNUSED(pFS);
   return;
 }
 
-static fs_result fs_ioctl_stdio(fs *pFS, int op, void *pArgs) {
+static fs_result fs_ioctl_stdio(fs* pFS, int op, void* pArgs) {
   FS_UNUSED(pFS);
   FS_UNUSED(op);
   FS_UNUSED(pArgs);
@@ -4996,7 +5571,7 @@ static fs_result fs_ioctl_stdio(fs *pFS, int op, void *pArgs) {
   return FS_INVALID_OPERATION;
 }
 
-static fs_result fs_remove_stdio(fs *pFS, const char *pFilePath) {
+static fs_result fs_remove_stdio(fs* pFS, const char* pFilePath) {
   int result = remove(pFilePath);
   if (result != 0) {
     return fs_result_from_errno(errno);
@@ -5007,8 +5582,9 @@ static fs_result fs_remove_stdio(fs *pFS, const char *pFilePath) {
   return FS_SUCCESS;
 }
 
-static fs_result fs_rename_stdio(fs *pFS, const char *pOldName,
-                                 const char *pNewName) {
+static fs_result fs_rename_stdio(fs* pFS,
+                                 const char* pOldName,
+                                 const char* pNewName) {
   int result = rename(pOldName, pNewName);
   if (result != 0) {
     return fs_result_from_errno(errno);
@@ -5020,8 +5596,18 @@ static fs_result fs_rename_stdio(fs *pFS, const char *pOldName,
 }
 
 #if defined(_WIN32)
-static fs_result fs_mkdir_stdio_win32(const char *pPath) {
-  int result = _mkdir(pPath);
+static fs_result fs_mkdir_stdio_win32(const char* pPath) {
+  int result;
+
+  /* If it's a drive letter segment just pretend it's successful. */
+  if (pPath[0] >= 'a' && pPath[0] <= 'z' ||
+      pPath[0] >= 'A' && pPath[0] <= 'Z') {
+    if (pPath[1] == ':' && pPath[2] == '\0') {
+      return FS_SUCCESS;
+    }
+  }
+
+  result = _mkdir(pPath);
   if (result != 0) {
     return fs_result_from_errno(errno);
   }
@@ -5029,7 +5615,7 @@ static fs_result fs_mkdir_stdio_win32(const char *pPath) {
   return FS_SUCCESS;
 }
 #else
-static fs_result fs_mkdir_stdio_posix(const char *pPath) {
+static fs_result fs_mkdir_stdio_posix(const char* pPath) {
   int result = mkdir(pPath, S_IRWXU);
   if (result != 0) {
     return fs_result_from_errno(errno);
@@ -5039,7 +5625,7 @@ static fs_result fs_mkdir_stdio_posix(const char *pPath) {
 }
 #endif
 
-static fs_result fs_mkdir_stdio(fs *pFS, const char *pPath) {
+static fs_result fs_mkdir_stdio(fs* pFS, const char* pPath) {
   fs_result result;
 
   FS_UNUSED(pFS);
@@ -5057,8 +5643,10 @@ static fs_result fs_mkdir_stdio(fs *pFS, const char *pPath) {
   return result;
 }
 
-static fs_result fs_info_stdio(fs *pFS, const char *pPath, int openMode,
-                               fs_file_info *pInfo) {
+static fs_result fs_info_stdio(fs* pFS,
+                               const char* pPath,
+                               int openMode,
+                               fs_file_info* pInfo) {
 /* We don't want to use stat() with Win32 because, from what I can tell, there's
  * no way to determine if it's a symbolic link. S_IFLNK does not seem to be
  * defined. */
@@ -5066,8 +5654,8 @@ static fs_result fs_info_stdio(fs *pFS, const char *pPath, int openMode,
   {
     int pathLen;
     wchar_t pPathWStack[1024];
-    wchar_t *pPathWHeap = NULL;
-    wchar_t *pPathW;
+    wchar_t* pPathWHeap = NULL;
+    wchar_t* pPathW;
     HANDLE hFind;
     WIN32_FIND_DATAW fd;
 
@@ -5080,7 +5668,7 @@ static fs_result fs_info_stdio(fs *pFS, const char *pPath, int openMode,
     if (pathLen <= (int)FS_COUNTOF(pPathWStack)) {
       pPathW = pPathWStack;
     } else {
-      pPathWHeap = (wchar_t *)fs_malloc(
+      pPathWHeap = (wchar_t*)fs_malloc(
           pathLen * sizeof(wchar_t),
           fs_get_allocation_callbacks(
               pFS)); /* pathLen includes the null terminator. */
@@ -5120,27 +5708,29 @@ static fs_result fs_info_stdio(fs *pFS, const char *pPath, int openMode,
 }
 
 typedef struct fs_file_stdio {
-  FILE *pFile;
+  FILE* pFile;
   char openMode[4];               /* For duplication. */
   fs_bool32 isRegisteredOrHandle; /* When set to true, will not be closed with
                                      fs_file_close(). */
 } fs_file_stdio;
 
-static size_t fs_file_alloc_size_stdio(fs *pFS) {
+static size_t fs_file_alloc_size_stdio(fs* pFS) {
   FS_UNUSED(pFS);
   return sizeof(fs_file_stdio);
 }
 
-static fs_result fs_file_open_stdio(fs *pFS, fs_stream *pStream,
-                                    const char *pPath, int openMode,
-                                    fs_file *pFile) {
-  fs_file_stdio *pFileStdio;
+static fs_result fs_file_open_stdio(fs* pFS,
+                                    fs_stream* pStream,
+                                    const char* pPath,
+                                    int openMode,
+                                    fs_file* pFile) {
+  fs_file_stdio* pFileStdio;
   int result;
 
   FS_UNUSED(pFS);
   FS_UNUSED(pStream);
 
-  pFileStdio = (fs_file_stdio *)fs_file_get_backend_data(pFile);
+  pFileStdio = (fs_file_stdio*)fs_file_get_backend_data(pFile);
   if (pFileStdio == NULL) {
     return FS_INVALID_ARGS;
   }
@@ -5200,8 +5790,8 @@ static fs_result fs_file_open_stdio(fs *pFS, fs_stream *pStream,
     int pathLen;
     wchar_t pOpenModeW[4];
     wchar_t pFilePathWStack[1024];
-    wchar_t *pFilePathWHeap = NULL;
-    wchar_t *pFilePathW;
+    wchar_t* pFilePathWHeap = NULL;
+    wchar_t* pFilePathW;
 
     /* Use Win32 to convert from UTF-8 to wchar_t. */
     pathLen = MultiByteToWideChar(CP_UTF8, 0, pPath, -1, NULL, 0);
@@ -5209,8 +5799,8 @@ static fs_result fs_file_open_stdio(fs *pFS, fs_stream *pStream,
       if (pathLen <= (int)FS_COUNTOF(pFilePathWStack)) {
         pFilePathW = pFilePathWStack;
       } else {
-        pFilePathWHeap = (wchar_t *)fs_malloc(pathLen * sizeof(wchar_t),
-                                              fs_get_allocation_callbacks(pFS));
+        pFilePathWHeap = (wchar_t*)fs_malloc(pathLen * sizeof(wchar_t),
+                                             fs_get_allocation_callbacks(pFS));
         if (pFilePathWHeap == NULL) {
           return FS_OUT_OF_MEMORY;
         }
@@ -5246,25 +5836,26 @@ static fs_result fs_file_open_stdio(fs *pFS, fs_stream *pStream,
   return FS_SUCCESS;
 }
 
-static fs_result fs_file_open_handle_stdio(fs *pFS, void *hBackendFile,
-                                           fs_file *pFile) {
-  fs_file_stdio *pFileStdio;
+static fs_result fs_file_open_handle_stdio(fs* pFS,
+                                           void* hBackendFile,
+                                           fs_file* pFile) {
+  fs_file_stdio* pFileStdio;
 
   FS_UNUSED(pFS);
 
-  pFileStdio = (fs_file_stdio *)fs_file_get_backend_data(pFile);
+  pFileStdio = (fs_file_stdio*)fs_file_get_backend_data(pFile);
   if (pFileStdio == NULL) {
     return FS_INVALID_ARGS;
   }
 
-  pFileStdio->pFile = (FILE *)hBackendFile;
+  pFileStdio->pFile = (FILE*)hBackendFile;
   pFileStdio->isRegisteredOrHandle = FS_TRUE;
 
   return FS_SUCCESS;
 }
 
-static void fs_file_close_stdio(fs_file *pFile) {
-  fs_file_stdio *pFileStdio = (fs_file_stdio *)fs_file_get_backend_data(pFile);
+static void fs_file_close_stdio(fs_file* pFile) {
+  fs_file_stdio* pFileStdio = (fs_file_stdio*)fs_file_get_backend_data(pFile);
   if (pFileStdio == NULL) {
     return;
   }
@@ -5274,17 +5865,19 @@ static void fs_file_close_stdio(fs_file *pFile) {
   }
 }
 
-static fs_result fs_file_read_stdio(fs_file *pFile, void *pDst,
-                                    size_t bytesToRead, size_t *pBytesRead) {
+static fs_result fs_file_read_stdio(fs_file* pFile,
+                                    void* pDst,
+                                    size_t bytesToRead,
+                                    size_t* pBytesRead) {
   size_t bytesRead;
-  fs_file_stdio *pFileStdio;
+  fs_file_stdio* pFileStdio;
 
   /* These were all validated at a higher level. */
   FS_ASSERT(pFile != NULL);
   FS_ASSERT(pDst != NULL);
   FS_ASSERT(pBytesRead != NULL);
 
-  pFileStdio = (fs_file_stdio *)fs_file_get_backend_data(pFile);
+  pFileStdio = (fs_file_stdio*)fs_file_get_backend_data(pFile);
   FS_ASSERT(pFileStdio != NULL);
 
   bytesRead = fread(pDst, 1, bytesToRead, pFileStdio->pFile);
@@ -5307,18 +5900,19 @@ static fs_result fs_file_read_stdio(fs_file *pFile, void *pDst,
   return FS_SUCCESS;
 }
 
-static fs_result fs_file_write_stdio(fs_file *pFile, const void *pSrc,
+static fs_result fs_file_write_stdio(fs_file* pFile,
+                                     const void* pSrc,
                                      size_t bytesToWrite,
-                                     size_t *pBytesWritten) {
+                                     size_t* pBytesWritten) {
   size_t bytesWritten;
-  fs_file_stdio *pFileStdio;
+  fs_file_stdio* pFileStdio;
 
   /* These were all validated at a higher level. */
   FS_ASSERT(pFile != NULL);
   FS_ASSERT(pSrc != NULL);
   FS_ASSERT(pBytesWritten != NULL);
 
-  pFileStdio = (fs_file_stdio *)fs_file_get_backend_data(pFile);
+  pFileStdio = (fs_file_stdio*)fs_file_get_backend_data(pFile);
   FS_ASSERT(pFileStdio != NULL);
 
   bytesWritten = fwrite(pSrc, 1, bytesToWrite, pFileStdio->pFile);
@@ -5332,16 +5926,17 @@ static fs_result fs_file_write_stdio(fs_file *pFile, const void *pSrc,
   return FS_SUCCESS;
 }
 
-static fs_result fs_file_seek_stdio(fs_file *pFile, fs_int64 offset,
+static fs_result fs_file_seek_stdio(fs_file* pFile,
+                                    fs_int64 offset,
                                     fs_seek_origin origin) {
-  fs_file_stdio *pFileStdio;
+  fs_file_stdio* pFileStdio;
   int result;
   int whence;
 
   /* These were all validated at a higher level. */
   FS_ASSERT(pFile != NULL);
 
-  pFileStdio = (fs_file_stdio *)fs_file_get_backend_data(pFile);
+  pFileStdio = (fs_file_stdio*)fs_file_get_backend_data(pFile);
   FS_ASSERT(pFileStdio != NULL);
 
   if (origin == FS_SEEK_SET) {
@@ -5373,15 +5968,15 @@ static fs_result fs_file_seek_stdio(fs_file *pFile, fs_int64 offset,
   return FS_SUCCESS;
 }
 
-static fs_result fs_file_tell_stdio(fs_file *pFile, fs_int64 *pCursor) {
-  fs_file_stdio *pFileStdio;
+static fs_result fs_file_tell_stdio(fs_file* pFile, fs_int64* pCursor) {
+  fs_file_stdio* pFileStdio;
   fs_int64 result;
 
   /* These were all validated at a higher level. */
   FS_ASSERT(pFile != NULL);
   FS_ASSERT(pCursor != NULL);
 
-  pFileStdio = (fs_file_stdio *)fs_file_get_backend_data(pFile);
+  pFileStdio = (fs_file_stdio*)fs_file_get_backend_data(pFile);
   FS_ASSERT(pFileStdio != NULL);
 
 #if defined(_WIN32)
@@ -5399,14 +5994,14 @@ static fs_result fs_file_tell_stdio(fs_file *pFile, fs_int64 *pCursor) {
   return FS_SUCCESS;
 }
 
-static fs_result fs_file_flush_stdio(fs_file *pFile) {
-  fs_file_stdio *pFileStdio;
+static fs_result fs_file_flush_stdio(fs_file* pFile) {
+  fs_file_stdio* pFileStdio;
   int result;
 
   /* These were all validated at a higher level. */
   FS_ASSERT(pFile != NULL);
 
-  pFileStdio = (fs_file_stdio *)fs_file_get_backend_data(pFile);
+  pFileStdio = (fs_file_stdio*)fs_file_get_backend_data(pFile);
   FS_ASSERT(pFileStdio != NULL);
 
   result = fflush(pFileStdio->pFile);
@@ -5423,11 +6018,11 @@ static fs_result fs_file_flush_stdio(fs_file *pFile) {
       defined(_XOPEN_SOURCE) || defined(_POSIX_SOURCE)) &&                     \
     !(defined(__DragonFly__) || defined(__FreeBSD__) || defined(__NetBSD__) || \
       defined(__OpenBSD__))
-int fileno(FILE *stream);
+int fileno(FILE* stream);
 #endif
 
-static fs_result fs_file_info_stdio(fs_file *pFile, fs_file_info *pInfo) {
-  fs_file_stdio *pFileStdio;
+static fs_result fs_file_info_stdio(fs_file* pFile, fs_file_info* pInfo) {
+  fs_file_stdio* pFileStdio;
   int fd;
   struct stat info;
 
@@ -5435,7 +6030,7 @@ static fs_result fs_file_info_stdio(fs_file *pFile, fs_file_info *pInfo) {
   FS_ASSERT(pFile != NULL);
   FS_ASSERT(pInfo != NULL);
 
-  pFileStdio = (fs_file_stdio *)fs_file_get_backend_data(pFile);
+  pFileStdio = (fs_file_stdio*)fs_file_get_backend_data(pFile);
   FS_ASSERT(pFileStdio != NULL);
 
 #if defined(_MSC_VER)
@@ -5460,20 +6055,20 @@ static fs_result fs_file_info_stdio(fs_file *pFile, fs_file_info *pInfo) {
 #include <fcntl.h>
 #include <io.h>
 
-FS_API fs_result fs_file_duplicate_stdio(fs_file *pFile,
-                                         fs_file *pDuplicatedFile) {
-  fs_file_stdio *pFileStdio;
-  fs_file_stdio *pDuplicatedFileStdio;
+FS_API fs_result fs_file_duplicate_stdio(fs_file* pFile,
+                                         fs_file* pDuplicatedFile) {
+  fs_file_stdio* pFileStdio;
+  fs_file_stdio* pDuplicatedFileStdio;
   int fd;
   int fdDuplicate;
   HANDLE hFile;
   HANDLE hFileDuplicate;
 
-  pFileStdio = (fs_file_stdio *)fs_file_get_backend_data(pFile);
+  pFileStdio = (fs_file_stdio*)fs_file_get_backend_data(pFile);
   FS_ASSERT(pFileStdio != NULL);
 
   pDuplicatedFileStdio =
-      (fs_file_stdio *)fs_file_get_backend_data(pDuplicatedFile);
+      (fs_file_stdio*)fs_file_get_backend_data(pDuplicatedFile);
   FS_ASSERT(pDuplicatedFileStdio != NULL);
 
   fd = _fileno(pFileStdio->pFile);
@@ -5511,17 +6106,18 @@ typedef struct fs_iterator_stdio {
   HANDLE hFind;
 } fs_iterator_stdio;
 
-FS_API void fs_free_iterator_stdio(fs_iterator *pIterator) {
-  fs_iterator_stdio *pIteratorStdio = (fs_iterator_stdio *)pIterator;
+FS_API void fs_free_iterator_stdio(fs_iterator* pIterator) {
+  fs_iterator_stdio* pIteratorStdio = (fs_iterator_stdio*)pIterator;
 
   FindClose(pIteratorStdio->hFind);
   fs_free(pIteratorStdio, fs_get_allocation_callbacks(pIterator->pFS));
 }
 
-static fs_iterator *fs_iterator_stdio_resolve(fs_iterator_stdio *pIteratorStdio,
-                                              fs *pFS, HANDLE hFind,
-                                              const WIN32_FIND_DATAW *pFD) {
-  fs_iterator_stdio *pNewIteratorStdio;
+static fs_iterator* fs_iterator_stdio_resolve(fs_iterator_stdio* pIteratorStdio,
+                                              fs* pFS,
+                                              HANDLE hFind,
+                                              const WIN32_FIND_DATAW* pFD) {
+  fs_iterator_stdio* pNewIteratorStdio;
   size_t allocSize;
   int nameLen;
 
@@ -5532,7 +6128,7 @@ static fs_iterator *fs_iterator_stdio_resolve(fs_iterator_stdio *pIteratorStdio,
   nameLen =
       WideCharToMultiByte(CP_UTF8, 0, pFD->cFileName, -1, NULL, 0, NULL, NULL);
   if (nameLen == 0) {
-    fs_free_iterator_stdio((fs_iterator *)pIteratorStdio);
+    fs_free_iterator_stdio((fs_iterator*)pIteratorStdio);
     return NULL;
   }
 
@@ -5544,10 +6140,10 @@ static fs_iterator *fs_iterator_stdio_resolve(fs_iterator_stdio *pIteratorStdio,
                                                  reallocations inside realloc().
                                                */
 
-  pNewIteratorStdio = (fs_iterator_stdio *)fs_realloc(
+  pNewIteratorStdio = (fs_iterator_stdio*)fs_realloc(
       pIteratorStdio, allocSize, fs_get_allocation_callbacks(pFS));
   if (pNewIteratorStdio == NULL) {
-    fs_free_iterator_stdio((fs_iterator *)pIteratorStdio);
+    fs_free_iterator_stdio((fs_iterator*)pIteratorStdio);
     return NULL;
   }
 
@@ -5556,27 +6152,28 @@ static fs_iterator *fs_iterator_stdio_resolve(fs_iterator_stdio *pIteratorStdio,
 
   /* Name. */
   pNewIteratorStdio->iterator.pName =
-      (char *)pNewIteratorStdio + sizeof(fs_iterator_stdio);
+      (char*)pNewIteratorStdio + sizeof(fs_iterator_stdio);
   pNewIteratorStdio->iterator.nameLen =
       (size_t)nameLen - 1; /* nameLen includes the null terminator. */
   WideCharToMultiByte(CP_UTF8, 0, pFD->cFileName, -1,
-                      (char *)pNewIteratorStdio->iterator.pName, nameLen, NULL,
+                      (char*)pNewIteratorStdio->iterator.pName, nameLen, NULL,
                       NULL); /* const-cast is safe here. */
 
   /* Info. */
   pNewIteratorStdio->iterator.info = fs_file_info_from_WIN32_FIND_DATAW(pFD);
 
-  return (fs_iterator *)pNewIteratorStdio;
+  return (fs_iterator*)pNewIteratorStdio;
 }
 
-FS_API fs_iterator *fs_first_stdio(fs *pFS, const char *pDirectoryPath,
+FS_API fs_iterator* fs_first_stdio(fs* pFS,
+                                   const char* pDirectoryPath,
                                    size_t directoryPathLen) {
   size_t i;
   int queryLen;
   int cbMultiByte;
   wchar_t pQueryStack[1024];
-  wchar_t *pQueryHeap = NULL;
-  wchar_t *pQuery;
+  wchar_t* pQueryHeap = NULL;
+  wchar_t* pQuery;
   HANDLE hFind;
   WIN32_FIND_DATAW fd;
 
@@ -5607,8 +6204,8 @@ FS_API fs_iterator *fs_first_stdio(fs *pFS, const char *pDirectoryPath,
   }
 
   if ((queryLen + 3) > (int)FS_COUNTOF(pQueryStack)) {
-    pQueryHeap = (wchar_t *)fs_malloc((queryLen + 3) * sizeof(wchar_t),
-                                      fs_get_allocation_callbacks(pFS));
+    pQueryHeap = (wchar_t*)fs_malloc((queryLen + 3) * sizeof(wchar_t),
+                                     fs_get_allocation_callbacks(pFS));
     if (pQueryHeap == NULL) {
       return NULL;
     }
@@ -5653,8 +6250,8 @@ FS_API fs_iterator *fs_first_stdio(fs *pFS, const char *pDirectoryPath,
   return fs_iterator_stdio_resolve(NULL, pFS, hFind, &fd);
 }
 
-FS_API fs_iterator *fs_next_stdio(fs_iterator *pIterator) {
-  fs_iterator_stdio *pIteratorStdio = (fs_iterator_stdio *)pIterator;
+FS_API fs_iterator* fs_next_stdio(fs_iterator* pIterator) {
+  fs_iterator_stdio* pIteratorStdio = (fs_iterator_stdio*)pIterator;
   WIN32_FIND_DATAW fd;
 
   if (!FindNextFileW(pIteratorStdio->hFind, &fd)) {
@@ -5666,24 +6263,24 @@ FS_API fs_iterator *fs_next_stdio(fs_iterator *pIterator) {
                                    pIteratorStdio->hFind, &fd);
 }
 #else
-#include <dirent.h>
 #include <unistd.h>
+#include <dirent.h>
 
-FS_API fs_result fs_file_duplicate_stdio(fs_file *pFile,
-                                         fs_file *pDuplicatedFile) {
-  fs_file_stdio *pFileStdio;
-  fs_file_stdio *pDuplicatedFileStdio;
-  FILE *pDuplicatedFileHandle;
+FS_API fs_result fs_file_duplicate_stdio(fs_file* pFile,
+                                         fs_file* pDuplicatedFile) {
+  fs_file_stdio* pFileStdio;
+  fs_file_stdio* pDuplicatedFileStdio;
+  FILE* pDuplicatedFileHandle;
 
   /* These were all validated at a higher level. */
   FS_ASSERT(pFile != NULL);
   FS_ASSERT(pDuplicatedFile != NULL);
 
-  pFileStdio = (fs_file_stdio *)fs_file_get_backend_data(pFile);
+  pFileStdio = (fs_file_stdio*)fs_file_get_backend_data(pFile);
   FS_ASSERT(pFileStdio != NULL);
 
   pDuplicatedFileStdio =
-      (fs_file_stdio *)fs_file_get_backend_data(pDuplicatedFile);
+      (fs_file_stdio*)fs_file_get_backend_data(pDuplicatedFile);
   FS_ASSERT(pDuplicatedFileStdio != NULL);
 
   pDuplicatedFileHandle =
@@ -5701,13 +6298,13 @@ FS_API fs_result fs_file_duplicate_stdio(fs_file *pFile,
 
 typedef struct fs_iterator_stdio {
   fs_iterator iterator;
-  DIR *pDir;
-  char *pFullFilePath;     /* Points to the end of the structure. */
+  DIR* pDir;
+  char* pFullFilePath;     /* Points to the end of the structure. */
   size_t directoryPathLen; /* The length of the directory section. */
 } fs_iterator_stdio;
 
-FS_API void fs_free_iterator_stdio(fs_iterator *pIterator) {
-  fs_iterator_stdio *pIteratorStdio = (fs_iterator_stdio *)pIterator;
+FS_API void fs_free_iterator_stdio(fs_iterator* pIterator) {
+  fs_iterator_stdio* pIteratorStdio = (fs_iterator_stdio*)pIterator;
 
   FS_ASSERT(pIteratorStdio != NULL);
 
@@ -5715,10 +6312,11 @@ FS_API void fs_free_iterator_stdio(fs_iterator *pIterator) {
   fs_free(pIteratorStdio, fs_get_allocation_callbacks(pIterator->pFS));
 }
 
-FS_API fs_iterator *fs_first_stdio(fs *pFS, const char *pDirectoryPath,
+FS_API fs_iterator* fs_first_stdio(fs* pFS,
+                                   const char* pDirectoryPath,
                                    size_t directoryPathLen) {
-  fs_iterator_stdio *pIteratorStdio;
-  struct dirent *info;
+  fs_iterator_stdio* pIteratorStdio;
+  struct dirent* info;
   struct stat statInfo;
   size_t fileNameLen;
 
@@ -5751,7 +6349,7 @@ FS_API fs_iterator *fs_first_stdio(fs *pFS, const char *pDirectoryPath,
   Now that we know the length of the directory we can allocate space for the
   iterator. The directory path will be placed at the end of the structure.
   */
-  pIteratorStdio = (fs_iterator_stdio *)fs_malloc(
+  pIteratorStdio = (fs_iterator_stdio*)fs_malloc(
       FS_MAX(sizeof(*pIteratorStdio) + directoryPathLen + 1,
              FS_STDIO_MIN_ITERATOR_ALLOCATION_SIZE),
       fs_get_allocation_callbacks(pFS)); /* +1 for null terminator. */
@@ -5762,7 +6360,7 @@ FS_API fs_iterator *fs_first_stdio(fs *pFS, const char *pDirectoryPath,
   /* Point pFullFilePath to the end of structure to where the path is located.
    */
   pIteratorStdio->pFullFilePath =
-      (char *)pIteratorStdio + sizeof(*pIteratorStdio);
+      (char*)pIteratorStdio + sizeof(*pIteratorStdio);
   pIteratorStdio->directoryPathLen = directoryPathLen;
 
   /* We can now copy over the directory path. This will null terminate the path
@@ -5793,7 +6391,7 @@ FS_API fs_iterator *fs_first_stdio(fs *pFS, const char *pDirectoryPath,
   length of the file name, including the separating slash.
   */
   {
-    fs_iterator_stdio *pNewIteratorStdio = (fs_iterator_stdio *)fs_realloc(
+    fs_iterator_stdio* pNewIteratorStdio = (fs_iterator_stdio*)fs_realloc(
         pIteratorStdio,
         FS_MAX(sizeof(*pIteratorStdio) + directoryPathLen + 1 + fileNameLen + 1,
                FS_STDIO_MIN_ITERATOR_ALLOCATION_SIZE),
@@ -5809,7 +6407,7 @@ FS_API fs_iterator *fs_first_stdio(fs *pFS, const char *pDirectoryPath,
 
   /* Memory has been allocated. Copy over the separating slash and file name. */
   pIteratorStdio->pFullFilePath =
-      (char *)pIteratorStdio + sizeof(*pIteratorStdio);
+      (char*)pIteratorStdio + sizeof(*pIteratorStdio);
   pIteratorStdio->pFullFilePath[directoryPathLen] = '/';
   fs_strcpy(pIteratorStdio->pFullFilePath + directoryPathLen + 1, info->d_name);
 
@@ -5828,12 +6426,12 @@ FS_API fs_iterator *fs_first_stdio(fs *pFS, const char *pDirectoryPath,
 
   pIteratorStdio->iterator.info = fs_file_info_from_stat(&statInfo);
 
-  return (fs_iterator *)pIteratorStdio;
+  return (fs_iterator*)pIteratorStdio;
 }
 
-FS_API fs_iterator *fs_next_stdio(fs_iterator *pIterator) {
-  fs_iterator_stdio *pIteratorStdio = (fs_iterator_stdio *)pIterator;
-  struct dirent *info;
+FS_API fs_iterator* fs_next_stdio(fs_iterator* pIterator) {
+  fs_iterator_stdio* pIteratorStdio = (fs_iterator_stdio*)pIterator;
+  struct dirent* info;
   struct stat statInfo;
   size_t fileNameLen;
 
@@ -5842,7 +6440,7 @@ FS_API fs_iterator *fs_next_stdio(fs_iterator *pIterator) {
   /* We need to get information about the next file. */
   info = readdir(pIteratorStdio->pDir);
   if (info == NULL) {
-    fs_free_iterator_stdio((fs_iterator *)pIteratorStdio);
+    fs_free_iterator_stdio((fs_iterator*)pIteratorStdio);
     return NULL; /* The end of the directory. */
   }
 
@@ -5850,7 +6448,7 @@ FS_API fs_iterator *fs_next_stdio(fs_iterator *pIterator) {
 
   /* We need to reallocate the iterator to account for the new file name. */
   {
-    fs_iterator_stdio *pNewIteratorStdio = (fs_iterator_stdio *)fs_realloc(
+    fs_iterator_stdio* pNewIteratorStdio = (fs_iterator_stdio*)fs_realloc(
         pIteratorStdio,
         FS_MAX(sizeof(*pIteratorStdio) + pIteratorStdio->directoryPathLen + 1 +
                    fileNameLen + 1,
@@ -5858,7 +6456,7 @@ FS_API fs_iterator *fs_next_stdio(fs_iterator *pIterator) {
         fs_get_allocation_callbacks(
             pIterator->pFS)); /* +1 for null terminator. */
     if (pNewIteratorStdio == NULL) {
-      fs_free_iterator_stdio((fs_iterator *)pIteratorStdio);
+      fs_free_iterator_stdio((fs_iterator*)pIteratorStdio);
       return NULL;
     }
 
@@ -5867,10 +6465,10 @@ FS_API fs_iterator *fs_next_stdio(fs_iterator *pIterator) {
 
   /* Memory has been allocated. Copy over the file name. */
   pIteratorStdio->pFullFilePath =
-      (char *)pIteratorStdio + sizeof(*pIteratorStdio);
-  fs_strcpy(pIteratorStdio->pFullFilePath + pIteratorStdio->directoryPathLen +
-                1,
-            info->d_name);
+      (char*)pIteratorStdio + sizeof(*pIteratorStdio);
+  fs_strcpy(
+      pIteratorStdio->pFullFilePath + pIteratorStdio->directoryPathLen + 1,
+      info->d_name);
 
   /* The pFileName member of the base iterator needs to be set to the file name.
    */
@@ -5880,13 +6478,13 @@ FS_API fs_iterator *fs_next_stdio(fs_iterator *pIterator) {
 
   /* We can now get the file information. */
   if (stat(pIteratorStdio->pFullFilePath, &statInfo) != 0) {
-    fs_free_iterator_stdio((fs_iterator *)pIteratorStdio);
+    fs_free_iterator_stdio((fs_iterator*)pIteratorStdio);
     return NULL;
   }
 
   pIteratorStdio->iterator.info = fs_file_info_from_stat(&statInfo);
 
-  return (fs_iterator *)pIteratorStdio;
+  return (fs_iterator*)pIteratorStdio;
 }
 #endif
 
@@ -5912,29 +6510,439 @@ fs_backend fs_stdio_backend = {fs_alloc_size_stdio,
                                fs_first_stdio,
                                fs_next_stdio,
                                fs_free_iterator_stdio};
-const fs_backend *FS_STDIO = &fs_stdio_backend;
+const fs_backend* FS_STDIO = &fs_stdio_backend;
 #else
-const fs_backend *FS_STDIO = NULL;
+const fs_backend* FS_STDIO = NULL;
 #endif
 /* END fs.c */
+
+/* BEG fs_sysdir.c */
+#if defined(_WIN32)
+#include <shlobj.h>
+#else
+#include <pwd.h>
+
+static const char* fs_sysdir_home(void) {
+  const char* pHome;
+  struct passwd* pPasswd;
+
+  pHome = getenv("HOME");
+  if (pHome != NULL) {
+    return pHome;
+  }
+
+  /* Fallback to getpwuid(). */
+  pPasswd = getpwuid(getuid());
+  if (pPasswd != NULL) {
+    return pPasswd->pw_dir;
+  }
+
+  return NULL;
+}
+
+static size_t fs_sysdir_home_subdir(const char* pSubDir,
+                                    char* pDst,
+                                    size_t dstCap) {
+  const char* pHome = fs_sysdir_home();
+  if (pHome != NULL) {
+    size_t homeLen = strlen(pHome);
+    size_t subDirLen = strlen(pSubDir);
+    size_t fullLength = homeLen + 1 + subDirLen;
+
+    if (fullLength < dstCap) {
+      FS_COPY_MEMORY(pDst, pHome, homeLen);
+      pDst[homeLen] = '/';
+      FS_COPY_MEMORY(pDst + homeLen + 1, pSubDir, subDirLen);
+      pDst[fullLength] = '\0';
+    }
+
+    return fullLength;
+  }
+
+  return 0;
+}
+#endif
+
+FS_API size_t fs_sysdir(fs_sysdir_type type, char* pDst, size_t dstCap) {
+  size_t fullLength = 0;
+
+#if defined(_WIN32)
+  {
+    HRESULT hr;
+    char pPath[260];
+
+    switch (type) {
+      case FS_SYSDIR_HOME: {
+        hr = SHGetFolderPathA(NULL, CSIDL_PROFILE, NULL, SHGFP_TYPE_CURRENT,
+                              pPath);
+        if (SUCCEEDED(hr)) {
+          fullLength = strlen(pPath);
+          if (pDst != NULL && fullLength < dstCap) {
+            FS_COPY_MEMORY(pDst, pPath, fullLength);
+            pDst[fullLength] = '\0';
+          }
+        }
+      } break;
+
+      case FS_SYSDIR_TEMP: {
+        fullLength = GetTempPathA(sizeof(pPath), pPath);
+        if (fullLength > 0) {
+          fullLength -= 1; /* Remove the trailing slash. */
+
+          if (pDst != NULL && fullLength < dstCap) {
+            FS_COPY_MEMORY(pDst, pPath, fullLength);
+            pDst[fullLength] = '\0';
+          }
+        }
+      } break;
+
+      case FS_SYSDIR_CONFIG: {
+        hr = SHGetFolderPathA(NULL, CSIDL_APPDATA, NULL, SHGFP_TYPE_CURRENT,
+                              pPath);
+        if (SUCCEEDED(hr)) {
+          fullLength = strlen(pPath);
+          if (pDst != NULL && fullLength < dstCap) {
+            FS_COPY_MEMORY(pDst, pPath, fullLength);
+            pDst[fullLength] = '\0';
+          }
+        }
+      } break;
+
+      case FS_SYSDIR_DATA: {
+        hr = SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA, NULL,
+                              SHGFP_TYPE_CURRENT, pPath);
+        if (SUCCEEDED(hr)) {
+          fullLength = strlen(pPath);
+          if (pDst != NULL && fullLength < dstCap) {
+            FS_COPY_MEMORY(pDst, pPath, fullLength);
+            pDst[fullLength] = '\0';
+          }
+        }
+      } break;
+
+      case FS_SYSDIR_CACHE: {
+        /* There's no proper known folder for caches. We'll just use
+         * %LOCALAPPDATA%\Cache. */
+        hr = SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA, NULL,
+                              SHGFP_TYPE_CURRENT, pPath);
+        if (SUCCEEDED(hr)) {
+          const char* pCacheSuffix = "\\Cache";
+          size_t localAppDataLen = strlen(pPath);
+          size_t cacheSuffixLen = strlen(pCacheSuffix);
+          fullLength = localAppDataLen + cacheSuffixLen;
+
+          if (pDst != NULL && fullLength < dstCap) {
+            FS_COPY_MEMORY(pDst, pPath, localAppDataLen);
+            FS_COPY_MEMORY(pDst + localAppDataLen, pCacheSuffix,
+                           cacheSuffixLen);
+            pDst[fullLength] = '\0';
+          }
+        }
+      } break;
+
+      default: {
+        FS_ASSERT(!"Unknown system directory type.");
+      } break;
+    }
+
+    /* Normalize the path to use forward slashes. */
+    if (pDst != NULL && fullLength < dstCap) {
+      size_t i;
+
+      for (i = 0; i < fullLength; i += 1) {
+        if (pDst[i] == '\\') {
+          pDst[i] = '/';
+        }
+      }
+    }
+  }
+#else
+  {
+    switch (type) {
+      case FS_SYSDIR_HOME: {
+        const char* pHome = fs_sysdir_home();
+        if (pHome != NULL) {
+          fullLength = strlen(pHome);
+          if (pDst != NULL && fullLength < dstCap) {
+            FS_COPY_MEMORY(pDst, pHome, fullLength);
+            pDst[fullLength] = '\0';
+          }
+        }
+      } break;
+
+      case FS_SYSDIR_TEMP: {
+        const char* pTemp = getenv("TMPDIR");
+        if (pTemp != NULL) {
+          fullLength = strlen(pTemp);
+          if (pDst != NULL && fullLength < dstCap) {
+            FS_COPY_MEMORY(pDst, pTemp, fullLength);
+            pDst[fullLength] = '\0';
+          }
+        } else {
+          /* Fallback to /tmp. */
+          const char* pTmp = "/tmp";
+          fullLength = strlen(pTmp);
+          if (pDst != NULL && fullLength < dstCap) {
+            FS_COPY_MEMORY(pDst, pTmp, fullLength);
+            pDst[fullLength] = '\0';
+          }
+        }
+      } break;
+
+      case FS_SYSDIR_CONFIG: {
+        const char* pConfig = getenv("XDG_CONFIG_HOME");
+        if (pConfig != NULL) {
+          fullLength = strlen(pConfig);
+          if (pDst != NULL && fullLength < dstCap) {
+            FS_COPY_MEMORY(pDst, pConfig, fullLength);
+            pDst[fullLength] = '\0';
+          }
+        } else {
+          /* Fallback to ~/.config. */
+          fullLength = fs_sysdir_home_subdir(".config", pDst, dstCap);
+        }
+      } break;
+
+      case FS_SYSDIR_DATA: {
+        const char* pData = getenv("XDG_DATA_HOME");
+        if (pData != NULL) {
+          fullLength = strlen(pData);
+          if (pDst != NULL && fullLength < dstCap) {
+            FS_COPY_MEMORY(pDst, pData, fullLength);
+            pDst[fullLength] = '\0';
+          }
+        } else {
+          /* Fallback to ~/.local/share. */
+          fullLength = fs_sysdir_home_subdir(".local/share", pDst, dstCap);
+        }
+      } break;
+
+      case FS_SYSDIR_CACHE: {
+        const char* pCache = getenv("XDG_CACHE_HOME");
+        if (pCache != NULL) {
+          fullLength = strlen(pCache);
+          if (pDst != NULL && fullLength < dstCap) {
+            FS_COPY_MEMORY(pDst, pCache, fullLength);
+            pDst[fullLength] = '\0';
+          }
+        } else {
+          /* Fallback to ~/.cache. */
+          fullLength = fs_sysdir_home_subdir(".cache", pDst, dstCap);
+        }
+      } break;
+
+      default: {
+        FS_ASSERT(!"Unknown system directory type.");
+      } break;
+    }
+  }
+#endif
+
+  return fullLength;
+}
+/* END fs_sysdir.c */
+
+/* BEG fs_mktmp.c */
+#if defined(_WIN32)
+#else
+#include <unistd.h> /* For close() */
+#endif
+
+FS_API fs_result fs_mktmp(const char* pPrefix,
+                          char* pTmpPath,
+                          size_t tmpPathCap,
+                          int options) {
+  size_t baseDirLen;
+  const char* pPrefixName;
+  const char* pPrefixDir;
+  size_t prefixDirLen;
+
+  if (pTmpPath == NULL) {
+    return FS_INVALID_ARGS;
+  }
+
+  pTmpPath[0] = '\0'; /* Safety. */
+
+  if (tmpPathCap == 0) {
+    return FS_INVALID_ARGS;
+  }
+
+  if (pPrefix == NULL) {
+    pPrefix = "";
+  }
+
+  if (pPrefix[0] == '\0') {
+    pPrefix = "fs";
+  }
+
+  /* The caller must explicitly specify whether or not a file or directory is
+   * being created. */
+  if ((options & (FS_MKTMP_DIR | FS_MKTMP_FILE)) == 0) {
+    return FS_INVALID_ARGS;
+  }
+
+  /* It's not allowed for both DIR and FILE to be set. */
+  if ((options & FS_MKTMP_DIR) != 0 && (options & FS_MKTMP_FILE) != 0) {
+    return FS_INVALID_ARGS;
+  }
+
+  /* The prefix is not allowed to have any ".." segments and cannot start with
+   * "/". */
+  if (strstr(pPrefix, "..") != NULL || pPrefix[0] == '/') {
+    return FS_INVALID_ARGS;
+  }
+
+  /* We first need to grab the directory of the system's base temp directory. */
+  baseDirLen = fs_sysdir(FS_SYSDIR_TEMP, pTmpPath, tmpPathCap);
+  if (baseDirLen == 0) {
+    return FS_ERROR; /* Failed to retrieve the base temp directory. Cannot
+                        create a temp file. */
+  }
+
+  /* Now we need to append the directory part of the prefix. */
+  pPrefixName = fs_path_file_name(pPrefix, FS_NULL_TERMINATED);
+  FS_ASSERT(pPrefixName != NULL);
+
+  if (pPrefixName == pPrefix) {
+    /* No directory. */
+    pPrefixDir = "";
+    prefixDirLen = 0;
+  } else {
+    /* We have a directory. */
+    pPrefixDir = pPrefix;
+    prefixDirLen = (size_t)(pPrefixName - pPrefix);
+    prefixDirLen -=
+        1; /* Remove the trailing slash from the prefix directory. */
+  }
+
+  if (prefixDirLen > 0) {
+    if (fs_strcat_s(pTmpPath, tmpPathCap, "/") != 0) {
+      return FS_PATH_TOO_LONG;
+    }
+  }
+
+  if (fs_strncat_s(pTmpPath, tmpPathCap, pPrefixDir, prefixDirLen) != 0) {
+    return FS_PATH_TOO_LONG;
+  }
+
+  /* Create the directory structure if necessary. */
+  if ((options & FS_NO_CREATE_DIRS) == 0) {
+    fs_mkdir(NULL, pTmpPath, FS_IGNORE_MOUNTS);
+  }
+
+  /* Now we can append the between the directory part and the name part. */
+  if (fs_strcat_s(pTmpPath, tmpPathCap, "/") != 0) {
+    return FS_PATH_TOO_LONG;
+  }
+
+/* We're now ready for the platform specific part. */
+#if defined(_WIN32)
+  {
+    /*
+    We're using GetTempFileName(). This is annoying because of two things.
+    First, it requires that path separators be backslashes. Second, it does not
+    take a capacity parameter so we need to ensure the output buffer is at least
+    MAX_PATH (260) bytes long.
+    */
+    char pTmpPathWin[MAX_PATH];
+    size_t i;
+
+    for (i = 0; pTmpPath[i] != '\0'; i += 1) {
+      if (pTmpPath[i] == '/') {
+        pTmpPath[i] = '\\';
+      }
+    }
+
+    if (GetTempFileNameA(pTmpPath, pPrefixName, 0, pTmpPathWin) == 0) {
+      return fs_result_from_errno(GetLastError());
+    }
+
+    /*
+    NOTE: At this point the operating system will have created the file. If any
+    error occurs from here we need to remember to delete it.
+    */
+
+    if (fs_strcpy_s(pTmpPath, tmpPathCap, pTmpPathWin) != 0) {
+      DeleteFileA(pTmpPathWin);
+      return FS_PATH_TOO_LONG;
+    }
+
+    /*
+    If we're creating a folder the process is to delete the file that the OS
+    just created and create a new folder in it's place.
+    */
+    if ((options & FS_MKTMP_DIR) != 0) {
+      /* We're creating a temp directory. Delete the file and create a folder in
+       * it's place. */
+      DeleteFileA(pTmpPathWin);
+
+      if (CreateDirectoryA(pTmpPathWin, NULL) == 0) {
+        return fs_result_from_errno(GetLastError());
+      }
+    } else {
+      /* We're creating a temp file. The OS will have already created the file
+       * in GetTempFileNameA() so no need to create it explicitly. */
+    }
+
+    /* Finally we need to convert our back slashes to forward slashes. */
+    for (i = 0; pTmpPath[i] != '\0'; i += 1) {
+      if (pTmpPath[i] == '\\') {
+        pTmpPath[i] = '/';
+      }
+    }
+  }
+#else
+  {
+    /* Append the file name part. */
+    if (fs_strcat_s(pTmpPath, tmpPathCap, pPrefixName) != 0) {
+      return FS_PATH_TOO_LONG;
+    }
+
+    /* Append the random part. */
+    if (fs_strcat_s(pTmpPath, tmpPathCap, "XXXXXX") != 0) {
+      return FS_PATH_TOO_LONG;
+    }
+
+    /* At this point the full path has been constructed. We can now create the
+     * file or directory. */
+    if ((options & FS_MKTMP_DIR) != 0) {
+      /* We're creating a temp directory. */
+      if (mkdtemp(pTmpPath) == NULL) {
+        return fs_result_from_errno(errno);
+      }
+    } else {
+      /* We're creating a temp file. */
+      int fd = mkstemp(pTmpPath);
+      if (fd == -1) {
+        return fs_result_from_errno(errno);
+      }
+
+      close(fd);
+    }
+  }
+#endif
+
+  return FS_SUCCESS;
+}
+/* END fs_mktmp.c */
 
 /* BEG fs_helpers.c */
 FS_API fs_result fs_result_from_errno(int error) {
   switch (error) {
-  case 0:
-    return FS_SUCCESS;
-  case ENOENT:
-    return FS_DOES_NOT_EXIST;
-  case EEXIST:
-    return FS_ALREADY_EXISTS;
-  case ENOTDIR:
-    return FS_NOT_DIRECTORY;
-  case ENOMEM:
-    return FS_OUT_OF_MEMORY;
-  case EINVAL:
-    return FS_INVALID_ARGS;
-  default:
-    break;
+    case 0:
+      return FS_SUCCESS;
+    case ENOENT:
+      return FS_DOES_NOT_EXIST;
+    case EEXIST:
+      return FS_ALREADY_EXISTS;
+    case ENOTDIR:
+      return FS_NOT_DIRECTORY;
+    case ENOMEM:
+      return FS_OUT_OF_MEMORY;
+    case EINVAL:
+      return FS_INVALID_ARGS;
+    default:
+      break;
   }
 
   /* Fall back to a generic error. */
@@ -5943,8 +6951,9 @@ FS_API fs_result fs_result_from_errno(int error) {
 /* END fs_helpers.c */
 
 /* BEG fs_path.c */
-FS_API fs_result fs_path_first(const char *pPath, size_t pathLen,
-                               fs_path_iterator *pIterator) {
+FS_API fs_result fs_path_first(const char* pPath,
+                               size_t pathLen,
+                               fs_path_iterator* pIterator) {
   if (pIterator == NULL) {
     return FS_INVALID_ARGS;
   }
@@ -5971,8 +6980,9 @@ FS_API fs_result fs_path_first(const char *pPath, size_t pathLen,
   return FS_SUCCESS;
 }
 
-FS_API fs_result fs_path_last(const char *pPath, size_t pathLen,
-                              fs_path_iterator *pIterator) {
+FS_API fs_result fs_path_last(const char* pPath,
+                              size_t pathLen,
+                              fs_path_iterator* pIterator) {
   if (pIterator == NULL) {
     return FS_INVALID_ARGS;
   }
@@ -6006,7 +7016,7 @@ FS_API fs_result fs_path_last(const char *pPath, size_t pathLen,
   return FS_SUCCESS;
 }
 
-FS_API fs_result fs_path_next(fs_path_iterator *pIterator) {
+FS_API fs_result fs_path_next(fs_path_iterator* pIterator) {
   if (pIterator == NULL) {
     return FS_INVALID_ARGS;
   }
@@ -6051,7 +7061,7 @@ FS_API fs_result fs_path_next(fs_path_iterator *pIterator) {
   return FS_SUCCESS;
 }
 
-FS_API fs_result fs_path_prev(fs_path_iterator *pIterator) {
+FS_API fs_result fs_path_prev(fs_path_iterator* pIterator) {
   if (pIterator == NULL) {
     return FS_INVALID_ARGS;
   }
@@ -6092,7 +7102,7 @@ FS_API fs_result fs_path_prev(fs_path_iterator *pIterator) {
   return FS_SUCCESS;
 }
 
-FS_API fs_bool32 fs_path_is_first(const fs_path_iterator *pIterator) {
+FS_API fs_bool32 fs_path_is_first(const fs_path_iterator* pIterator) {
   if (pIterator == NULL) {
     return FS_FALSE;
   }
@@ -6100,7 +7110,7 @@ FS_API fs_bool32 fs_path_is_first(const fs_path_iterator *pIterator) {
   return pIterator->segmentOffset == 0;
 }
 
-FS_API fs_bool32 fs_path_is_last(const fs_path_iterator *pIterator) {
+FS_API fs_bool32 fs_path_is_last(const fs_path_iterator* pIterator) {
   if (pIterator == NULL) {
     return FS_FALSE;
   }
@@ -6114,8 +7124,8 @@ FS_API fs_bool32 fs_path_is_last(const fs_path_iterator *pIterator) {
   }
 }
 
-FS_API int fs_path_iterators_compare(const fs_path_iterator *pIteratorA,
-                                     const fs_path_iterator *pIteratorB) {
+FS_API int fs_path_iterators_compare(const fs_path_iterator* pIteratorA,
+                                     const fs_path_iterator* pIteratorB) {
   FS_ASSERT(pIteratorA != NULL);
   FS_ASSERT(pIteratorB != NULL);
 
@@ -6131,7 +7141,64 @@ FS_API int fs_path_iterators_compare(const fs_path_iterator *pIteratorA,
       FS_MIN(pIteratorA->segmentLength, pIteratorB->segmentLength));
 }
 
-FS_API const char *fs_path_file_name(const char *pPath, size_t pathLen) {
+FS_API int fs_path_compare(const char* pPathA,
+                           size_t pathALen,
+                           const char* pPathB,
+                           size_t pathBLen) {
+  fs_path_iterator iPathA;
+  fs_path_iterator iPathB;
+  fs_result result;
+
+  if (pPathA == NULL && pPathB == NULL) {
+    return 0;
+  }
+
+  if (pPathA == NULL) {
+    return -1;
+  }
+  if (pPathB == NULL) {
+    return +1;
+  }
+
+  result = fs_path_first(pPathA, pathALen, &iPathA);
+  if (result != FS_SUCCESS) {
+    return -1;
+  }
+
+  result = fs_path_first(pPathB, pathBLen, &iPathB);
+  if (result != FS_SUCCESS) {
+    return +1;
+  }
+
+  /* We just keep iterating until we find a mismatch or reach the end of one of
+   * the paths. */
+  for (;;) {
+    int cmp;
+
+    cmp = fs_path_iterators_compare(&iPathA, &iPathB);
+    if (cmp != 0) {
+      return cmp;
+    }
+
+    if (fs_path_is_last(&iPathA) && fs_path_is_last(&iPathB)) {
+      return 0; /* Both paths are the same. */
+    }
+
+    result = fs_path_next(&iPathA);
+    if (result != FS_SUCCESS) {
+      return -1;
+    }
+
+    result = fs_path_next(&iPathB);
+    if (result != FS_SUCCESS) {
+      return +1;
+    }
+  }
+
+  return 0;
+}
+
+FS_API const char* fs_path_file_name(const char* pPath, size_t pathLen) {
   /* The file name is just the last segment. */
   fs_result result;
   fs_path_iterator last;
@@ -6148,9 +7215,11 @@ FS_API const char *fs_path_file_name(const char *pPath, size_t pathLen) {
   return last.pFullPath + last.segmentOffset;
 }
 
-FS_API int fs_path_directory(char *pDst, size_t dstCap, const char *pPath,
+FS_API int fs_path_directory(char* pDst,
+                             size_t dstCap,
+                             const char* pPath,
                              size_t pathLen) {
-  const char *pFileName;
+  const char* pFileName;
 
   pFileName = fs_path_file_name(pPath, pathLen);
   if (pFileName == NULL) {
@@ -6164,7 +7233,7 @@ FS_API int fs_path_directory(char *pDst, size_t dstCap, const char *pPath,
 
     return 0; /* The path is just a file name. */
   } else {
-    const char *pDirEnd = pFileName - 1;
+    const char* pDirEnd = pFileName - 1;
     size_t dirLen = (size_t)(pDirEnd - pPath);
 
     if (pDst != NULL && dstCap > 0) {
@@ -6184,9 +7253,9 @@ FS_API int fs_path_directory(char *pDst, size_t dstCap, const char *pPath,
   }
 }
 
-FS_API const char *fs_path_extension(const char *pPath, size_t pathLen) {
-  const char *pDot = NULL;
-  const char *pLastSlash = NULL;
+FS_API const char* fs_path_extension(const char* pPath, size_t pathLen) {
+  const char* pDot = NULL;
+  const char* pLastSlash = NULL;
   size_t i;
 
   if (pPath == NULL) {
@@ -6215,8 +7284,9 @@ FS_API const char *fs_path_extension(const char *pPath, size_t pathLen) {
   }
 }
 
-FS_API fs_bool32 fs_path_extension_equal(const char *pPath, size_t pathLen,
-                                         const char *pExtension,
+FS_API fs_bool32 fs_path_extension_equal(const char* pPath,
+                                         size_t pathLen,
+                                         const char* pExtension,
                                          size_t extensionLen) {
   if (pPath == NULL || pExtension == NULL) {
     return FS_FALSE;
@@ -6242,8 +7312,9 @@ FS_API fs_bool32 fs_path_extension_equal(const char *pPath, size_t pathLen,
                      extensionLen) == 0;
 }
 
-FS_API const char *fs_path_trim_base(const char *pPath, size_t pathLen,
-                                     const char *pBasePath,
+FS_API const char* fs_path_trim_base(const char* pPath,
+                                     size_t pathLen,
+                                     const char* pBasePath,
                                      size_t basePathLen) {
   fs_path_iterator iPath;
   fs_path_iterator iBase;
@@ -6299,8 +7370,18 @@ FS_API const char *fs_path_trim_base(const char *pPath, size_t pathLen,
   return iPath.pFullPath + iPath.segmentOffset;
 }
 
-FS_API int fs_path_append(char *pDst, size_t dstCap, const char *pBasePath,
-                          size_t basePathLen, const char *pPathToAppend,
+FS_API fs_bool32 fs_path_begins_with(const char* pPath,
+                                     size_t pathLen,
+                                     const char* pBasePath,
+                                     size_t basePathLen) {
+  return fs_path_trim_base(pPath, pathLen, pBasePath, basePathLen) != NULL;
+}
+
+FS_API int fs_path_append(char* pDst,
+                          size_t dstCap,
+                          const char* pBasePath,
+                          size_t basePathLen,
+                          const char* pPathToAppend,
                           size_t pathToAppendLen) {
   size_t dstLen = 0;
 
@@ -6386,8 +7467,11 @@ FS_API int fs_path_append(char *pDst, size_t dstCap, const char *pBasePath,
   return (int)dstLen;
 }
 
-FS_API int fs_path_normalize(char *pDst, size_t dstCap, const char *pPath,
-                             size_t pathLen, unsigned int options) {
+FS_API int fs_path_normalize(char* pDst,
+                             size_t dstCap,
+                             const char* pPath,
+                             size_t pathLen,
+                             unsigned int options) {
   fs_path_iterator iPath;
   fs_result result;
   fs_bool32 allowLeadingBackNav = FS_TRUE;
@@ -6530,33 +7614,34 @@ FS_API int fs_path_normalize(char *pDst, size_t dstCap, const char *pPath,
 /* END fs_path.c */
 
 /* BEG fs_memory_stream.c */
-static fs_result fs_memory_stream_read_internal(fs_stream *pStream, void *pDst,
+static fs_result fs_memory_stream_read_internal(fs_stream* pStream,
+                                                void* pDst,
                                                 size_t bytesToRead,
-                                                size_t *pBytesRead) {
-  return fs_memory_stream_read((fs_memory_stream *)pStream, pDst, bytesToRead,
+                                                size_t* pBytesRead) {
+  return fs_memory_stream_read((fs_memory_stream*)pStream, pDst, bytesToRead,
                                pBytesRead);
 }
 
-static fs_result fs_memory_stream_write_internal(fs_stream *pStream,
-                                                 const void *pSrc,
+static fs_result fs_memory_stream_write_internal(fs_stream* pStream,
+                                                 const void* pSrc,
                                                  size_t bytesToWrite,
-                                                 size_t *pBytesWritten) {
-  return fs_memory_stream_write((fs_memory_stream *)pStream, pSrc, bytesToWrite,
+                                                 size_t* pBytesWritten) {
+  return fs_memory_stream_write((fs_memory_stream*)pStream, pSrc, bytesToWrite,
                                 pBytesWritten);
 }
 
-static fs_result fs_memory_stream_seek_internal(fs_stream *pStream,
+static fs_result fs_memory_stream_seek_internal(fs_stream* pStream,
                                                 fs_int64 offset,
                                                 fs_seek_origin origin) {
-  return fs_memory_stream_seek((fs_memory_stream *)pStream, offset, origin);
+  return fs_memory_stream_seek((fs_memory_stream*)pStream, offset, origin);
 }
 
-static fs_result fs_memory_stream_tell_internal(fs_stream *pStream,
-                                                fs_int64 *pCursor) {
+static fs_result fs_memory_stream_tell_internal(fs_stream* pStream,
+                                                fs_int64* pCursor) {
   fs_result result;
   size_t cursor;
 
-  result = fs_memory_stream_tell((fs_memory_stream *)pStream, &cursor);
+  result = fs_memory_stream_tell((fs_memory_stream*)pStream, &cursor);
   if (result != FS_SUCCESS) {
     return result;
   }
@@ -6572,18 +7657,18 @@ static fs_result fs_memory_stream_tell_internal(fs_stream *pStream,
   return FS_SUCCESS;
 }
 
-static size_t
-fs_memory_stream_duplicate_alloc_size_internal(fs_stream *pStream) {
+static size_t fs_memory_stream_duplicate_alloc_size_internal(
+    fs_stream* pStream) {
   (void)pStream;
   return sizeof(fs_memory_stream);
 }
 
-static fs_result
-fs_memory_stream_duplicate_internal(fs_stream *pStream,
-                                    fs_stream *pDuplicatedStream) {
-  fs_memory_stream *pMemoryStream;
+static fs_result fs_memory_stream_duplicate_internal(
+    fs_stream* pStream,
+    fs_stream* pDuplicatedStream) {
+  fs_memory_stream* pMemoryStream;
 
-  pMemoryStream = (fs_memory_stream *)pStream;
+  pMemoryStream = (fs_memory_stream*)pStream;
   FS_ASSERT(pMemoryStream != NULL);
 
   *pDuplicatedStream = *pStream;
@@ -6591,7 +7676,7 @@ fs_memory_stream_duplicate_internal(fs_stream *pStream,
   /* Slightly special handling for write mode. Need to make a copy of the output
    * buffer. */
   if (pMemoryStream->write.pData != NULL) {
-    void *pNewData = fs_malloc(pMemoryStream->write.dataCap,
+    void* pNewData = fs_malloc(pMemoryStream->write.dataCap,
                                &pMemoryStream->allocationCallbacks);
     if (pNewData == NULL) {
       return FS_OUT_OF_MEMORY;
@@ -6605,15 +7690,15 @@ fs_memory_stream_duplicate_internal(fs_stream *pStream,
     pMemoryStream->ppData = &pMemoryStream->write.pData;
     pMemoryStream->pDataSize = &pMemoryStream->write.dataSize;
   } else {
-    pMemoryStream->ppData = (void **)&pMemoryStream->readonly.pData;
+    pMemoryStream->ppData = (void**)&pMemoryStream->readonly.pData;
     pMemoryStream->pDataSize = &pMemoryStream->readonly.dataSize;
   }
 
   return FS_SUCCESS;
 }
 
-static void fs_memory_stream_uninit_internal(fs_stream *pStream) {
-  fs_memory_stream_uninit((fs_memory_stream *)pStream);
+static void fs_memory_stream_uninit_internal(fs_stream* pStream) {
+  fs_memory_stream_uninit((fs_memory_stream*)pStream);
 }
 
 static fs_stream_vtable fs_gStreamVTableMemory = {
@@ -6626,8 +7711,8 @@ static fs_stream_vtable fs_gStreamVTableMemory = {
     fs_memory_stream_uninit_internal};
 
 FS_API fs_result
-fs_memory_stream_init_write(const fs_allocation_callbacks *pAllocationCallbacks,
-                            fs_memory_stream *pStream) {
+fs_memory_stream_init_write(const fs_allocation_callbacks* pAllocationCallbacks,
+                            fs_memory_stream* pStream) {
   fs_result result;
 
   if (pStream == NULL) {
@@ -6653,9 +7738,9 @@ fs_memory_stream_init_write(const fs_allocation_callbacks *pAllocationCallbacks,
   return FS_SUCCESS;
 }
 
-FS_API fs_result fs_memory_stream_init_readonly(const void *pData,
+FS_API fs_result fs_memory_stream_init_readonly(const void* pData,
                                                 size_t dataSize,
-                                                fs_memory_stream *pStream) {
+                                                fs_memory_stream* pStream) {
   fs_result result;
 
   if (pStream == NULL) {
@@ -6676,13 +7761,13 @@ FS_API fs_result fs_memory_stream_init_readonly(const void *pData,
   pStream->readonly.pData = pData;
   pStream->readonly.dataSize = dataSize;
 
-  pStream->ppData = (void **)&pStream->readonly.pData;
+  pStream->ppData = (void**)&pStream->readonly.pData;
   pStream->pDataSize = &pStream->readonly.dataSize;
 
   return FS_SUCCESS;
 }
 
-FS_API void fs_memory_stream_uninit(fs_memory_stream *pStream) {
+FS_API void fs_memory_stream_uninit(fs_memory_stream* pStream) {
   if (pStream == NULL) {
     return;
   }
@@ -6692,8 +7777,10 @@ FS_API void fs_memory_stream_uninit(fs_memory_stream *pStream) {
   }
 }
 
-FS_API fs_result fs_memory_stream_read(fs_memory_stream *pStream, void *pDst,
-                                       size_t bytesToRead, size_t *pBytesRead) {
+FS_API fs_result fs_memory_stream_read(fs_memory_stream* pStream,
+                                       void* pDst,
+                                       size_t bytesToRead,
+                                       size_t* pBytesRead) {
   size_t bytesAvailable;
   size_t bytesRead;
 
@@ -6733,9 +7820,10 @@ FS_API fs_result fs_memory_stream_read(fs_memory_stream *pStream, void *pDst,
   return FS_SUCCESS;
 }
 
-FS_API fs_result fs_memory_stream_write(fs_memory_stream *pStream,
-                                        const void *pSrc, size_t bytesToWrite,
-                                        size_t *pBytesWritten) {
+FS_API fs_result fs_memory_stream_write(fs_memory_stream* pStream,
+                                        const void* pSrc,
+                                        size_t bytesToWrite,
+                                        size_t* pBytesWritten) {
   size_t newSize;
 
   if (pBytesWritten != NULL) {
@@ -6754,7 +7842,7 @@ FS_API fs_result fs_memory_stream_write(fs_memory_stream *pStream,
   newSize = *pStream->pDataSize + bytesToWrite;
   if (newSize > pStream->write.dataCap) {
     /* Need to resize. */
-    void *pNewBuffer;
+    void* pNewBuffer;
     size_t newCap;
 
     newCap = FS_MAX(newSize, pStream->write.dataCap * 2);
@@ -6781,8 +7869,11 @@ FS_API fs_result fs_memory_stream_write(fs_memory_stream *pStream,
   return FS_SUCCESS;
 }
 
-FS_API fs_result fs_memory_stream_seek(fs_memory_stream *pStream,
-                                       fs_int64 offset, int origin) {
+FS_API fs_result fs_memory_stream_seek(fs_memory_stream* pStream,
+                                       fs_int64 offset,
+                                       int origin) {
+  fs_int64 newCursor;
+
   if (pStream == NULL) {
     return FS_INVALID_ARGS;
   }
@@ -6792,60 +7883,35 @@ FS_API fs_result fs_memory_stream_seek(fs_memory_stream *pStream,
                                64-bit builds. */
   }
 
-  /*
-  The seek binary - it works or it doesn't. There's no clamping to the end or
-  anything like that. The seek point is either valid or invalid.
-  */
-  if (origin == FS_SEEK_CUR) {
-    if (offset > 0) {
-      /* Moving forward. */
-      size_t bytesRemaining = *pStream->pDataSize - pStream->cursor;
-      if (bytesRemaining < (size_t)offset) {
-        return FS_BAD_SEEK; /* Trying to seek beyond the end of the buffer. */
-      }
+  newCursor = pStream->cursor;
 
-      pStream->cursor += (size_t)offset;
-    } else {
-      /* Moving backwards. */
-      size_t absoluteOffset =
-          (size_t)FS_ABS(offset); /* Safe cast because it was checked above. */
-      if (absoluteOffset > pStream->cursor) {
-        return FS_BAD_SEEK; /* Trying to seek prior to the start of the buffer.
-                             */
-      }
-
-      pStream->cursor -= absoluteOffset;
-    }
-  } else if (origin == FS_SEEK_SET) {
-    if (offset < 0) {
-      return FS_BAD_SEEK; /* Trying to seek prior to the start of the buffer..
-                           */
-    }
-
-    if ((size_t)offset > *pStream->pDataSize) {
-      return FS_BAD_SEEK;
-    }
-
-    pStream->cursor = (size_t)offset;
+  if (origin == FS_SEEK_SET) {
+    newCursor = 0;
+  } else if (origin == FS_SEEK_CUR) {
+    newCursor = (fs_int64)pStream->cursor;
   } else if (origin == FS_SEEK_END) {
-    if (offset > 0) {
-      return FS_BAD_SEEK; /* Trying to seek beyond the end of the buffer. */
-    }
-
-    if ((size_t)FS_ABS(offset) > *pStream->pDataSize) {
-      return FS_BAD_SEEK;
-    }
-
-    pStream->cursor = *pStream->pDataSize - (size_t)FS_ABS(offset);
+    newCursor = (fs_int64)*pStream->pDataSize;
   } else {
+    FS_ASSERT(!"Invalid seek origin");
     return FS_INVALID_ARGS;
   }
+
+  newCursor += offset;
+
+  if (newCursor < 0) {
+    return FS_BAD_SEEK; /* Trying to seek prior to the start of the buffer. */
+  }
+  if ((size_t)newCursor > *pStream->pDataSize) {
+    return FS_BAD_SEEK; /* Trying to seek beyond the end of the buffer. */
+  }
+
+  pStream->cursor = (size_t)newCursor;
 
   return FS_SUCCESS;
 }
 
-FS_API fs_result fs_memory_stream_tell(fs_memory_stream *pStream,
-                                       size_t *pCursor) {
+FS_API fs_result fs_memory_stream_tell(fs_memory_stream* pStream,
+                                       size_t* pCursor) {
   if (pCursor == NULL) {
     return FS_INVALID_ARGS;
   }
@@ -6861,10 +7927,11 @@ FS_API fs_result fs_memory_stream_tell(fs_memory_stream *pStream,
   return FS_SUCCESS;
 }
 
-FS_API fs_result fs_memory_stream_remove(fs_memory_stream *pStream,
-                                         size_t offset, size_t size) {
-  void *pDst;
-  void *pSrc;
+FS_API fs_result fs_memory_stream_remove(fs_memory_stream* pStream,
+                                         size_t offset,
+                                         size_t size) {
+  void* pDst;
+  void* pSrc;
   size_t tailSize;
 
   if (pStream == NULL) {
@@ -6894,7 +7961,7 @@ FS_API fs_result fs_memory_stream_remove(fs_memory_stream *pStream,
   return FS_SUCCESS;
 }
 
-FS_API fs_result fs_memory_stream_truncate(fs_memory_stream *pStream) {
+FS_API fs_result fs_memory_stream_truncate(fs_memory_stream* pStream) {
   if (pStream == NULL) {
     return FS_INVALID_ARGS;
   }
@@ -6903,9 +7970,9 @@ FS_API fs_result fs_memory_stream_truncate(fs_memory_stream *pStream) {
                                  (*pStream->pDataSize - pStream->cursor));
 }
 
-FS_API void *fs_memory_stream_take_ownership(fs_memory_stream *pStream,
-                                             size_t *pSize) {
-  void *pData;
+FS_API void* fs_memory_stream_take_ownership(fs_memory_stream* pStream,
+                                             size_t* pSize) {
+  void* pData;
 
   if (pStream == NULL) {
     return NULL;
@@ -6925,9 +7992,9 @@ FS_API void *fs_memory_stream_take_ownership(fs_memory_stream *pStream,
 /* END fs_memory_stream.c */
 
 /* BEG fs_utils.c */
-static FS_INLINE void fs_swap(void *a, void *b, size_t sz) {
-  char *_a = (char *)a;
-  char *_b = (char *)b;
+static FS_INLINE void fs_swap(void* a, void* b, size_t sz) {
+  char* _a = (char*)a;
+  char* _b = (char*)b;
 
   while (sz > 0) {
     char temp = *_a;
@@ -6937,17 +8004,19 @@ static FS_INLINE void fs_swap(void *a, void *b, size_t sz) {
   }
 }
 
-FS_API void fs_sort(void *pBase, size_t count, size_t stride,
-                    int (*compareProc)(void *, const void *, const void *),
-                    void *pUserData) {
+FS_API void fs_sort(void* pBase,
+                    size_t count,
+                    size_t stride,
+                    int (*compareProc)(void*, const void*, const void*),
+                    void* pUserData) {
   /* Simple insert sort for now. Will improve on this later. */
   size_t i;
   size_t j;
 
   for (i = 1; i < count; i += 1) {
     for (j = i; j > 0; j -= 1) {
-      void *pA = (char *)pBase + (j - 1) * stride;
-      void *pB = (char *)pBase + j * stride;
+      void* pA = (char*)pBase + (j - 1) * stride;
+      void* pB = (char*)pBase + j * stride;
 
       if (compareProc(pUserData, pA, pB) <= 0) {
         break;
@@ -6958,9 +8027,14 @@ FS_API void fs_sort(void *pBase, size_t count, size_t stride,
   }
 }
 
-FS_API void *fs_binary_search(
-    const void *pKey, const void *pList, size_t count, size_t stride,
-    int (*compareProc)(void *, const void *, const void *), void *pUserData) {
+FS_API void* fs_binary_search(const void* pKey,
+                              const void* pList,
+                              size_t count,
+                              size_t stride,
+                              int (*compareProc)(void*,
+                                                 const void*,
+                                                 const void*),
+                              void* pUserData) {
   size_t iStart;
   size_t iEnd;
   size_t iMid;
@@ -6978,38 +8052,48 @@ FS_API void *fs_binary_search(
     iMid = iStart + (iEnd - iStart) / 2;
 
     compareResult =
-        compareProc(pUserData, pKey, (char *)pList + (iMid * stride));
+        compareProc(pUserData, pKey, (char*)pList + (iMid * stride));
     if (compareResult < 0) {
       iEnd = iMid - 1;
     } else if (compareResult > 0) {
       iStart = iMid + 1;
     } else {
-      return (void *)((char *)pList + (iMid * stride));
+      return (void*)((char*)pList + (iMid * stride));
     }
   }
 
   return NULL;
 }
 
-FS_API void *fs_linear_search(
-    const void *pKey, const void *pList, size_t count, size_t stride,
-    int (*compareProc)(void *, const void *, const void *), void *pUserData) {
+FS_API void* fs_linear_search(const void* pKey,
+                              const void* pList,
+                              size_t count,
+                              size_t stride,
+                              int (*compareProc)(void*,
+                                                 const void*,
+                                                 const void*),
+                              void* pUserData) {
   size_t i;
 
   for (i = 0; i < count; i += 1) {
     int compareResult =
-        compareProc(pUserData, pKey, (char *)pList + (i * stride));
+        compareProc(pUserData, pKey, (char*)pList + (i * stride));
     if (compareResult == 0) {
-      return (void *)((char *)pList + (i * stride));
+      return (void*)((char*)pList + (i * stride));
     }
   }
 
   return NULL;
 }
 
-FS_API void *fs_sorted_search(
-    const void *pKey, const void *pList, size_t count, size_t stride,
-    int (*compareProc)(void *, const void *, const void *), void *pUserData) {
+FS_API void* fs_sorted_search(const void* pKey,
+                              const void* pList,
+                              size_t count,
+                              size_t stride,
+                              int (*compareProc)(void*,
+                                                 const void*,
+                                                 const void*),
+                              void* pUserData) {
   const size_t threshold = 10;
 
   if (count < threshold) {
@@ -7023,7 +8107,7 @@ FS_API void *fs_sorted_search(
 /* ==== Amalgamations Below ==== */
 
 /* BEG fs_snprintf.c */
-typedef char *fs_sprintf_callback(const char *buf, void *user, size_t len);
+typedef char* fs_sprintf_callback(const char* buf, void* user, size_t len);
 
 /*
 Disabling unaligned access for safety. TODO: Look at a way to make this
@@ -7035,7 +8119,7 @@ be able to do via the amalgamator.
 #endif
 
 /* We need to disable the implicit-fallthrough warning on GCC. */
-#if defined(__GNUC__) &&                                                       \
+#if defined(__GNUC__) && \
     (__GNUC__ >= 7 || (__GNUC__ == 6 && __GNUC_MINOR__ >= 1))
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
@@ -7054,7 +8138,7 @@ be able to do via the amalgamator.
 #endif
 #endif
 #endif
-#elif defined(__GNUC__) &&                                                     \
+#elif defined(__GNUC__) && \
     (__GNUC__ >= 5 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8))
 #if defined(__SANITIZE_ADDRESS__) && __SANITIZE_ADDRESS__
 #define FS_ASAN __attribute__((__no_sanitize_address__))
@@ -7091,10 +8175,13 @@ be able to do via the amalgamator.
 
 #ifndef FS_SPRINTF_NOFLOAT
 
-static fs_int32 fs_real_to_str(char const **start, fs_uint32 *len, char *out,
-                               fs_int32 *decimal_pos, double value,
+static fs_int32 fs_real_to_str(char const** start,
+                               fs_uint32* len,
+                               char* out,
+                               fs_int32* decimal_pos,
+                               double value,
                                fs_uint32 frac_digits);
-static fs_int32 fs_real_to_parts(fs_int64 *bits, fs_int32 *expo, double value);
+static fs_int32 fs_real_to_parts(fs_int64* bits, fs_int32* expo, double value);
 #define FS_SPECIAL 0x7000
 #endif
 
@@ -7103,10 +8190,11 @@ static char fs_comma = ',';
 static struct {
   short temp;
   char pair[201];
-} fs_digitpair = {0, "00010203040506070809101112131415161718192021222324"
-                     "25262728293031323334353637383940414243444546474849"
-                     "50515253545556575859606162636465666768697071727374"
-                     "75767778798081828384858687888990919293949596979899"};
+} fs_digitpair = {0,
+                  "00010203040506070809101112131415161718192021222324"
+                  "25262728293031323334353637383940414243444546474849"
+                  "50515253545556575859606162636465666768697071727374"
+                  "75767778798081828384858687888990919293949596979899"};
 
 FS_API_SPRINTF_DEF void fs_set_sprintf_separators(char pcomma, char pperiod) {
   fs_period = pperiod;
@@ -7127,7 +8215,7 @@ FS_API_SPRINTF_DEF void fs_set_sprintf_separators(char pcomma, char pperiod) {
 #define FS_METRIC_1024 2048
 #define FS_METRIC_JEDEC 4096
 
-static void fs_lead_sign(fs_uint32 fl, char *sign) {
+static void fs_lead_sign(fs_uint32 fl, char* sign) {
   sign[0] = 0;
   if (fl & FS_NEGATIVE) {
     sign[0] = 1;
@@ -7141,8 +8229,8 @@ static void fs_lead_sign(fs_uint32 fl, char *sign) {
   }
 }
 
-static FS_ASAN fs_uint32 fs_strlen_limited(char const *s, fs_uint32 limit) {
-  char const *sn = s;
+static FS_ASAN fs_uint32 fs_strlen_limited(char const* s, fs_uint32 limit) {
+  char const* sn = s;
 
   for (;;) {
     if (((fs_uintptr)sn & 3) == 0)
@@ -7156,7 +8244,7 @@ static FS_ASAN fs_uint32 fs_strlen_limited(char const *s, fs_uint32 limit) {
   }
 
   while (limit >= 4) {
-    fs_uint32 v = *(fs_uint32 *)sn;
+    fs_uint32 v = *(fs_uint32*)sn;
 
     if ((v - 0x01010101) & (~v) & 0x80808080UL)
       break;
@@ -7173,12 +8261,15 @@ static FS_ASAN fs_uint32 fs_strlen_limited(char const *s, fs_uint32 limit) {
   return (fs_uint32)(sn - s);
 }
 
-FS_API_SPRINTF_DEF int fs_vsprintfcb(fs_sprintf_callback *callback, void *user,
-                                     char *buf, char const *fmt, va_list va) {
+FS_API_SPRINTF_DEF int fs_vsprintfcb(fs_sprintf_callback* callback,
+                                     void* user,
+                                     char* buf,
+                                     char const* fmt,
+                                     va_list va) {
   static char hex[] = "0123456789abcdefxp";
   static char hexu[] = "0123456789ABCDEFXP";
-  char *bf;
-  char const *f;
+  char* bf;
+  char const* f;
   int tlen = 0;
 
   bf = buf;
@@ -7187,29 +8278,31 @@ FS_API_SPRINTF_DEF int fs_vsprintfcb(fs_sprintf_callback *callback, void *user,
     fs_int32 fw, pr, tz;
     fs_uint32 fl;
 
-#define fs_chk_cb_bufL(bytes)                                                  \
-  {                                                                            \
-    int len = (int)(bf - buf);                                                 \
-    if ((len + (bytes)) >= FS_SPRINTF_MIN) {                                   \
-      tlen += len;                                                             \
-      if (0 == (bf = buf = callback(buf, user, len)))                          \
-        goto done;                                                             \
-    }                                                                          \
+#define fs_chk_cb_bufL(bytes)                         \
+  {                                                   \
+    int len = (int)(bf - buf);                        \
+    if ((len + (bytes)) >= FS_SPRINTF_MIN) {          \
+      tlen += len;                                    \
+      if (0 == (bf = buf = callback(buf, user, len))) \
+        goto done;                                    \
+    }                                                 \
   }
-#define fs_chk_cb_buf(bytes)                                                   \
-  {                                                                            \
-    if (callback) {                                                            \
-      fs_chk_cb_bufL(bytes);                                                   \
-    }                                                                          \
+#define fs_chk_cb_buf(bytes) \
+  {                          \
+    if (callback) {          \
+      fs_chk_cb_bufL(bytes); \
+    }                        \
   }
-#define fs_flush_cb()                                                          \
-  { fs_chk_cb_bufL(FS_SPRINTF_MIN - 1); }
-#define fs_cb_buf_clamp(cl, v)                                                 \
-  cl = v;                                                                      \
-  if (callback) {                                                              \
-    int lg = FS_SPRINTF_MIN - (int)(bf - buf);                                 \
-    if (cl > lg)                                                               \
-      cl = lg;                                                                 \
+#define fs_flush_cb()                   \
+  {                                     \
+    fs_chk_cb_bufL(FS_SPRINTF_MIN - 1); \
+  }
+#define fs_cb_buf_clamp(cl, v)                 \
+  cl = v;                                      \
+  if (callback) {                              \
+    int lg = FS_SPRINTF_MIN - (int)(bf - buf); \
+    if (cl > lg)                               \
+      cl = lg;                                 \
   }
 
     for (;;) {
@@ -7225,9 +8318,8 @@ FS_API_SPRINTF_DEF int fs_vsprintfcb(fs_sprintf_callback *callback, void *user,
         ++f;
       }
       for (;;) {
-
         fs_uint32 v, c;
-        v = *(fs_uint32 *)f;
+        v = *(fs_uint32*)f;
         c = (~v) & 0x80808080;
         if (((v ^ 0x25252525) - 0x01010101) & c)
           goto schk1;
@@ -7245,7 +8337,7 @@ FS_API_SPRINTF_DEF int fs_vsprintfcb(fs_sprintf_callback *callback, void *user,
         } else
 #endif
         {
-          *(fs_uint32 *)bf = v;
+          *(fs_uint32*)bf = v;
         }
         bf += 4;
         f += 4;
@@ -7262,56 +8354,55 @@ FS_API_SPRINTF_DEF int fs_vsprintfcb(fs_sprintf_callback *callback, void *user,
 
     for (;;) {
       switch (f[0]) {
+        case '-':
+          fl |= FS_LEFTJUST;
+          ++f;
+          continue;
 
-      case '-':
-        fl |= FS_LEFTJUST;
-        ++f;
-        continue;
+        case '+':
+          fl |= FS_LEADINGPLUS;
+          ++f;
+          continue;
 
-      case '+':
-        fl |= FS_LEADINGPLUS;
-        ++f;
-        continue;
+        case ' ':
+          fl |= FS_LEADINGSPACE;
+          ++f;
+          continue;
 
-      case ' ':
-        fl |= FS_LEADINGSPACE;
-        ++f;
-        continue;
+        case '#':
+          fl |= FS_LEADING_0X;
+          ++f;
+          continue;
 
-      case '#':
-        fl |= FS_LEADING_0X;
-        ++f;
-        continue;
+        case '\'':
+          fl |= FS_TRIPLET_COMMA;
+          ++f;
+          continue;
 
-      case '\'':
-        fl |= FS_TRIPLET_COMMA;
-        ++f;
-        continue;
-
-      case '$':
-        if (fl & FS_METRIC_SUFFIX) {
-          if (fl & FS_METRIC_1024) {
-            fl |= FS_METRIC_JEDEC;
+        case '$':
+          if (fl & FS_METRIC_SUFFIX) {
+            if (fl & FS_METRIC_1024) {
+              fl |= FS_METRIC_JEDEC;
+            } else {
+              fl |= FS_METRIC_1024;
+            }
           } else {
-            fl |= FS_METRIC_1024;
+            fl |= FS_METRIC_SUFFIX;
           }
-        } else {
-          fl |= FS_METRIC_SUFFIX;
-        }
-        ++f;
-        continue;
+          ++f;
+          continue;
 
-      case '_':
-        fl |= FS_METRIC_NOSPACE;
-        ++f;
-        continue;
+        case '_':
+          fl |= FS_METRIC_NOSPACE;
+          ++f;
+          continue;
 
-      case '0':
-        fl |= FS_LEADINGZERO;
-        ++f;
-        goto flags_done;
-      default:
-        goto flags_done;
+        case '0':
+          fl |= FS_LEADINGZERO;
+          ++f;
+          goto flags_done;
+        default:
+          goto flags_done;
       }
     }
   flags_done:
@@ -7341,50 +8432,49 @@ FS_API_SPRINTF_DEF int fs_vsprintfcb(fs_sprintf_callback *callback, void *user,
     }
 
     switch (f[0]) {
-
-    case 'h':
-      fl |= FS_HALFWIDTH;
-      ++f;
-      if (f[0] == 'h')
+      case 'h':
+        fl |= FS_HALFWIDTH;
         ++f;
-      break;
+        if (f[0] == 'h')
+          ++f;
+        break;
 
-    case 'l':
-      fl |= ((sizeof(long) == 8) ? FS_INTMAX : 0);
-      ++f;
-      if (f[0] == 'l') {
-        fl |= FS_INTMAX;
+      case 'l':
+        fl |= ((sizeof(long) == 8) ? FS_INTMAX : 0);
         ++f;
-      }
-      break;
+        if (f[0] == 'l') {
+          fl |= FS_INTMAX;
+          ++f;
+        }
+        break;
 
-    case 'j':
-      fl |= (sizeof(size_t) == 8) ? FS_INTMAX : 0;
-      ++f;
-      break;
-
-    case 'z':
-      fl |= (sizeof(ptrdiff_t) == 8) ? FS_INTMAX : 0;
-      ++f;
-      break;
-    case 't':
-      fl |= (sizeof(ptrdiff_t) == 8) ? FS_INTMAX : 0;
-      ++f;
-      break;
-
-    case 'I':
-      if ((f[1] == '6') && (f[2] == '4')) {
-        fl |= FS_INTMAX;
-        f += 3;
-      } else if ((f[1] == '3') && (f[2] == '2')) {
-        f += 3;
-      } else {
-        fl |= ((sizeof(void *) == 8) ? FS_INTMAX : 0);
+      case 'j':
+        fl |= (sizeof(size_t) == 8) ? FS_INTMAX : 0;
         ++f;
-      }
-      break;
-    default:
-      break;
+        break;
+
+      case 'z':
+        fl |= (sizeof(ptrdiff_t) == 8) ? FS_INTMAX : 0;
+        ++f;
+        break;
+      case 't':
+        fl |= (sizeof(ptrdiff_t) == 8) ? FS_INTMAX : 0;
+        ++f;
+        break;
+
+      case 'I':
+        if ((f[1] == '6') && (f[2] == '4')) {
+          fl |= FS_INTMAX;
+          f += 3;
+        } else if ((f[1] == '3') && (f[2] == '2')) {
+          f += 3;
+        } else {
+          fl |= ((sizeof(void*) == 8) ? FS_INTMAX : 0);
+          ++f;
+        }
+        break;
+      default:
+        break;
     }
 
     switch (f[0]) {
@@ -7392,609 +8482,651 @@ FS_API_SPRINTF_DEF int fs_vsprintfcb(fs_sprintf_callback *callback, void *user,
       char num[FS_NUMSZ];
       char lead[8];
       char tail[8];
-      char *s;
-      char const *h;
+      char* s;
+      char const* h;
       fs_uint32 l, n, cs;
       fs_uint64 n64;
 #ifndef FS_SPRINTF_NOFLOAT
       double fv;
 #endif
       fs_int32 dp;
-      char const *sn;
+      char const* sn;
 
-    case 's':
+      case 's':
 
-      s = va_arg(va, char *);
-      if (s == 0)
-        s = (char *)"null";
+        s = va_arg(va, char*);
+        if (s == 0)
+          s = (char*)"null";
 
-      l = fs_strlen_limited(s, (pr >= 0) ? (fs_uint32)pr : ~0u);
-      lead[0] = 0;
-      tail[0] = 0;
-      pr = 0;
-      dp = 0;
-      cs = 0;
+        l = fs_strlen_limited(s, (pr >= 0) ? (fs_uint32)pr : ~0u);
+        lead[0] = 0;
+        tail[0] = 0;
+        pr = 0;
+        dp = 0;
+        cs = 0;
 
-      goto scopy;
+        goto scopy;
 
-    case 'c':
+      case 'c':
 
-      s = num + FS_NUMSZ - 1;
-      *s = (char)va_arg(va, int);
-      l = 1;
-      lead[0] = 0;
-      tail[0] = 0;
-      pr = 0;
-      dp = 0;
-      cs = 0;
-      goto scopy;
+        s = num + FS_NUMSZ - 1;
+        *s = (char)va_arg(va, int);
+        l = 1;
+        lead[0] = 0;
+        tail[0] = 0;
+        pr = 0;
+        dp = 0;
+        cs = 0;
+        goto scopy;
 
-    case 'n': {
-      int *d = va_arg(va, int *);
-      *d = tlen + (int)(bf - buf);
-    } break;
+      case 'n': {
+        int* d = va_arg(va, int*);
+        *d = tlen + (int)(bf - buf);
+      } break;
 
 #ifdef FS_SPRINTF_NOFLOAT
-    case 'A':
-    case 'a':
-    case 'G':
-    case 'g':
-    case 'E':
-    case 'e':
-    case 'f':
-      va_arg(va, double);
-      s = (char *)"No float";
-      l = 8;
-      lead[0] = 0;
-      tail[0] = 0;
-      pr = 0;
-      cs = 0;
-      FS_UNUSED(dp);
-      goto scopy;
+      case 'A':
+      case 'a':
+      case 'G':
+      case 'g':
+      case 'E':
+      case 'e':
+      case 'f':
+        va_arg(va, double);
+        s = (char*)"No float";
+        l = 8;
+        lead[0] = 0;
+        tail[0] = 0;
+        pr = 0;
+        cs = 0;
+        FS_UNUSED(dp);
+        goto scopy;
 #else
-    case 'A':
-    case 'a':
-      h = (f[0] == 'A') ? hexu : hex;
-      fv = va_arg(va, double);
-      if (pr == -1)
-        pr = 6;
+      case 'A':
+      case 'a':
+        h = (f[0] == 'A') ? hexu : hex;
+        fv = va_arg(va, double);
+        if (pr == -1)
+          pr = 6;
 
-      if (fs_real_to_parts((fs_int64 *)&n64, &dp, fv))
-        fl |= FS_NEGATIVE;
+        if (fs_real_to_parts((fs_int64*)&n64, &dp, fv))
+          fl |= FS_NEGATIVE;
 
-      s = num + 64;
+        s = num + 64;
 
-      fs_lead_sign(fl, lead);
+        fs_lead_sign(fl, lead);
 
-      if (dp == -1023)
-        dp = (n64) ? -1022 : 0;
-      else
-        n64 |= (((fs_uint64)1) << 52);
-      n64 <<= (64 - 56);
-      if (pr < 15)
-        n64 += ((((fs_uint64)8) << 56) >> (pr * 4));
+        if (dp == -1023)
+          dp = (n64) ? -1022 : 0;
+        else
+          n64 |= (((fs_uint64)1) << 52);
+        n64 <<= (64 - 56);
+        if (pr < 15)
+          n64 += ((((fs_uint64)8) << 56) >> (pr * 4));
 
 #ifdef FS_SPRINTF_MSVC_MODE
-      *s++ = '0';
-      *s++ = 'x';
+        *s++ = '0';
+        *s++ = 'x';
 #else
-      lead[1 + lead[0]] = '0';
-      lead[2 + lead[0]] = 'x';
-      lead[0] += 2;
+        lead[1 + lead[0]] = '0';
+        lead[2 + lead[0]] = 'x';
+        lead[0] += 2;
 #endif
-      *s++ = h[(n64 >> 60) & 15];
-      n64 <<= 4;
-      if (pr)
-        *s++ = fs_period;
-      sn = s;
-
-      n = pr;
-      if (n > 13)
-        n = 13;
-      if (pr > (fs_int32)n)
-        tz = pr - n;
-      pr = 0;
-      while (n--) {
         *s++ = h[(n64 >> 60) & 15];
         n64 <<= 4;
-      }
-
-      tail[1] = h[17];
-      if (dp < 0) {
-        tail[2] = '-';
-        dp = -dp;
-      } else
-        tail[2] = '+';
-      n = (dp >= 1000) ? 6 : ((dp >= 100) ? 5 : ((dp >= 10) ? 4 : 3));
-      tail[0] = (char)n;
-      for (;;) {
-        tail[n] = '0' + dp % 10;
-        if (n <= 3)
-          break;
-        --n;
-        dp /= 10;
-      }
-
-      dp = (int)(s - sn);
-      l = (int)(s - (num + 64));
-      s = num + 64;
-      cs = 1 + (3 << 24);
-      goto scopy;
-
-    case 'G':
-    case 'g':
-      h = (f[0] == 'G') ? hexu : hex;
-      fv = va_arg(va, double);
-      if (pr == -1)
-        pr = 6;
-      else if (pr == 0)
-        pr = 1;
-
-      if (fs_real_to_str(&sn, &l, num, &dp, fv, (pr - 1) | 0x80000000))
-        fl |= FS_NEGATIVE;
-
-      n = pr;
-      if (l > (fs_uint32)pr)
-        l = pr;
-      while ((l > 1) && (pr) && (sn[l - 1] == '0')) {
-        --pr;
-        --l;
-      }
-
-      if ((dp <= -4) || (dp > (fs_int32)n)) {
-        if (pr > (fs_int32)l)
-          pr = l - 1;
-        else if (pr)
-          --pr;
-        goto doexpfromg;
-      }
-
-      if (dp > 0) {
-        pr = (dp < (fs_int32)l) ? l - dp : 0;
-      } else {
-        pr = -dp + ((pr > (fs_int32)l) ? (fs_int32)l : pr);
-      }
-      goto dofloatfromg;
-
-    case 'E':
-    case 'e':
-      h = (f[0] == 'E') ? hexu : hex;
-      fv = va_arg(va, double);
-      if (pr == -1)
-        pr = 6;
-
-      if (fs_real_to_str(&sn, &l, num, &dp, fv, pr | 0x80000000))
-        fl |= FS_NEGATIVE;
-    doexpfromg:
-      tail[0] = 0;
-      fs_lead_sign(fl, lead);
-      if (dp == FS_SPECIAL) {
-        s = (char *)sn;
-        cs = 0;
-        pr = 0;
-        goto scopy;
-      }
-      s = num + 64;
-
-      *s++ = sn[0];
-
-      if (pr)
-        *s++ = fs_period;
-
-      if ((l - 1) > (fs_uint32)pr)
-        l = pr + 1;
-      for (n = 1; n < l; n++)
-        *s++ = sn[n];
-
-      tz = pr - (l - 1);
-      pr = 0;
-
-      tail[1] = h[0xe];
-      dp -= 1;
-      if (dp < 0) {
-        tail[2] = '-';
-        dp = -dp;
-      } else
-        tail[2] = '+';
-#ifdef FS_SPRINTF_MSVC_MODE
-      n = 5;
-#else
-      n = (dp >= 100) ? 5 : 4;
-#endif
-      tail[0] = (char)n;
-      for (;;) {
-        tail[n] = '0' + dp % 10;
-        if (n <= 3)
-          break;
-        --n;
-        dp /= 10;
-      }
-      cs = 1 + (3 << 24);
-      goto flt_lead;
-
-    case 'f':
-      fv = va_arg(va, double);
-    doafloat:
-
-      if (fl & FS_METRIC_SUFFIX) {
-        double divisor;
-        divisor = 1000.0f;
-        if (fl & FS_METRIC_1024)
-          divisor = 1024.0;
-        while (fl < 0x4000000) {
-          if ((fv < divisor) && (fv > -divisor))
-            break;
-          fv /= divisor;
-          fl += 0x1000000;
-        }
-      }
-      if (pr == -1)
-        pr = 6;
-
-      if (fs_real_to_str(&sn, &l, num, &dp, fv, pr))
-        fl |= FS_NEGATIVE;
-    dofloatfromg:
-      tail[0] = 0;
-      fs_lead_sign(fl, lead);
-      if (dp == FS_SPECIAL) {
-        s = (char *)sn;
-        cs = 0;
-        pr = 0;
-        goto scopy;
-      }
-      s = num + 64;
-
-      if (dp <= 0) {
-        fs_int32 i;
-
-        *s++ = '0';
         if (pr)
           *s++ = fs_period;
-        n = -dp;
-        if ((fs_int32)n > pr)
-          n = pr;
-        i = n;
-        while (i) {
-          if ((((fs_uintptr)s) & 3) == 0)
-            break;
-          *s++ = '0';
-          --i;
-        }
-        while (i >= 4) {
-          *(fs_uint32 *)s = 0x30303030;
-          s += 4;
-          i -= 4;
-        }
-        while (i) {
-          *s++ = '0';
-          --i;
-        }
-        if ((fs_int32)(l + n) > pr)
-          l = pr - n;
-        i = l;
-        while (i) {
-          *s++ = *sn++;
-          --i;
-        }
-        tz = pr - (n + l);
-        cs = 1 + (3 << 24);
-      } else {
-        cs = (fl & FS_TRIPLET_COMMA) ? ((600 - (fs_uint32)dp) % 3) : 0;
-        if ((fs_uint32)dp >= l) {
+        sn = s;
 
-          n = 0;
-          for (;;) {
-            if ((fl & FS_TRIPLET_COMMA) && (++cs == 4)) {
-              cs = 0;
-              *s++ = fs_comma;
-            } else {
-              *s++ = sn[n];
-              ++n;
-              if (n >= l)
-                break;
-            }
+        n = pr;
+        if (n > 13)
+          n = 13;
+        if (pr > (fs_int32)n)
+          tz = pr - n;
+        pr = 0;
+        while (n--) {
+          *s++ = h[(n64 >> 60) & 15];
+          n64 <<= 4;
+        }
+
+        tail[1] = h[17];
+        if (dp < 0) {
+          tail[2] = '-';
+          dp = -dp;
+        } else
+          tail[2] = '+';
+        n = (dp >= 1000) ? 6 : ((dp >= 100) ? 5 : ((dp >= 10) ? 4 : 3));
+        tail[0] = (char)n;
+        for (;;) {
+          tail[n] = '0' + dp % 10;
+          if (n <= 3)
+            break;
+          --n;
+          dp /= 10;
+        }
+
+        dp = (int)(s - sn);
+        l = (int)(s - (num + 64));
+        s = num + 64;
+        cs = 1 + (3 << 24);
+        goto scopy;
+
+      case 'G':
+      case 'g':
+        h = (f[0] == 'G') ? hexu : hex;
+        fv = va_arg(va, double);
+        if (pr == -1)
+          pr = 6;
+        else if (pr == 0)
+          pr = 1;
+
+        if (fs_real_to_str(&sn, &l, num, &dp, fv, (pr - 1) | 0x80000000))
+          fl |= FS_NEGATIVE;
+
+        n = pr;
+        if (l > (fs_uint32)pr)
+          l = pr;
+        while ((l > 1) && (pr) && (sn[l - 1] == '0')) {
+          --pr;
+          --l;
+        }
+
+        if ((dp <= -4) || (dp > (fs_int32)n)) {
+          if (pr > (fs_int32)l)
+            pr = l - 1;
+          else if (pr)
+            --pr;
+          goto doexpfromg;
+        }
+
+        if (dp > 0) {
+          pr = (dp < (fs_int32)l) ? l - dp : 0;
+        } else {
+          pr = -dp + ((pr > (fs_int32)l) ? (fs_int32)l : pr);
+        }
+        goto dofloatfromg;
+
+      case 'E':
+      case 'e':
+        h = (f[0] == 'E') ? hexu : hex;
+        fv = va_arg(va, double);
+        if (pr == -1)
+          pr = 6;
+
+        if (fs_real_to_str(&sn, &l, num, &dp, fv, pr | 0x80000000))
+          fl |= FS_NEGATIVE;
+      doexpfromg:
+        tail[0] = 0;
+        fs_lead_sign(fl, lead);
+        if (dp == FS_SPECIAL) {
+          s = (char*)sn;
+          cs = 0;
+          pr = 0;
+          goto scopy;
+        }
+        s = num + 64;
+
+        *s++ = sn[0];
+
+        if (pr)
+          *s++ = fs_period;
+
+        if ((l - 1) > (fs_uint32)pr)
+          l = pr + 1;
+        for (n = 1; n < l; n++)
+          *s++ = sn[n];
+
+        tz = pr - (l - 1);
+        pr = 0;
+
+        tail[1] = h[0xe];
+        dp -= 1;
+        if (dp < 0) {
+          tail[2] = '-';
+          dp = -dp;
+        } else
+          tail[2] = '+';
+#ifdef FS_SPRINTF_MSVC_MODE
+        n = 5;
+#else
+        n = (dp >= 100) ? 5 : 4;
+#endif
+        tail[0] = (char)n;
+        for (;;) {
+          tail[n] = '0' + dp % 10;
+          if (n <= 3)
+            break;
+          --n;
+          dp /= 10;
+        }
+        cs = 1 + (3 << 24);
+        goto flt_lead;
+
+      case 'f':
+        fv = va_arg(va, double);
+      doafloat:
+
+        if (fl & FS_METRIC_SUFFIX) {
+          double divisor;
+          divisor = 1000.0f;
+          if (fl & FS_METRIC_1024)
+            divisor = 1024.0;
+          while (fl < 0x4000000) {
+            if ((fv < divisor) && (fv > -divisor))
+              break;
+            fv /= divisor;
+            fl += 0x1000000;
           }
-          if (n < (fs_uint32)dp) {
-            n = dp - n;
-            if ((fl & FS_TRIPLET_COMMA) == 0) {
-              while (n) {
-                if ((((fs_uintptr)s) & 3) == 0)
-                  break;
-                *s++ = '0';
-                --n;
-              }
-              while (n >= 4) {
-                *(fs_uint32 *)s = 0x30303030;
-                s += 4;
-                n -= 4;
-              }
-            }
-            while (n) {
+        }
+        if (pr == -1)
+          pr = 6;
+
+        if (fs_real_to_str(&sn, &l, num, &dp, fv, pr))
+          fl |= FS_NEGATIVE;
+      dofloatfromg:
+        tail[0] = 0;
+        fs_lead_sign(fl, lead);
+        if (dp == FS_SPECIAL) {
+          s = (char*)sn;
+          cs = 0;
+          pr = 0;
+          goto scopy;
+        }
+        s = num + 64;
+
+        if (dp <= 0) {
+          fs_int32 i;
+
+          *s++ = '0';
+          if (pr)
+            *s++ = fs_period;
+          n = -dp;
+          if ((fs_int32)n > pr)
+            n = pr;
+          i = n;
+          while (i) {
+            if ((((fs_uintptr)s) & 3) == 0)
+              break;
+            *s++ = '0';
+            --i;
+          }
+          while (i >= 4) {
+            *(fs_uint32*)s = 0x30303030;
+            s += 4;
+            i -= 4;
+          }
+          while (i) {
+            *s++ = '0';
+            --i;
+          }
+          if ((fs_int32)(l + n) > pr)
+            l = pr - n;
+          i = l;
+          while (i) {
+            *s++ = *sn++;
+            --i;
+          }
+          tz = pr - (n + l);
+          cs = 1 + (3 << 24);
+        } else {
+          cs = (fl & FS_TRIPLET_COMMA) ? ((600 - (fs_uint32)dp) % 3) : 0;
+          if ((fs_uint32)dp >= l) {
+            n = 0;
+            for (;;) {
               if ((fl & FS_TRIPLET_COMMA) && (++cs == 4)) {
                 cs = 0;
                 *s++ = fs_comma;
               } else {
-                *s++ = '0';
-                --n;
+                *s++ = sn[n];
+                ++n;
+                if (n >= l)
+                  break;
               }
             }
-          }
-          cs = (int)(s - (num + 64)) + (3 << 24);
-          if (pr) {
-            *s++ = fs_period;
-            tz = pr;
-          }
-        } else {
-
-          n = 0;
-          for (;;) {
-            if ((fl & FS_TRIPLET_COMMA) && (++cs == 4)) {
-              cs = 0;
-              *s++ = fs_comma;
-            } else {
+            if (n < (fs_uint32)dp) {
+              n = dp - n;
+              if ((fl & FS_TRIPLET_COMMA) == 0) {
+                while (n) {
+                  if ((((fs_uintptr)s) & 3) == 0)
+                    break;
+                  *s++ = '0';
+                  --n;
+                }
+                while (n >= 4) {
+                  *(fs_uint32*)s = 0x30303030;
+                  s += 4;
+                  n -= 4;
+                }
+              }
+              while (n) {
+                if ((fl & FS_TRIPLET_COMMA) && (++cs == 4)) {
+                  cs = 0;
+                  *s++ = fs_comma;
+                } else {
+                  *s++ = '0';
+                  --n;
+                }
+              }
+            }
+            cs = (int)(s - (num + 64)) + (3 << 24);
+            if (pr) {
+              *s++ = fs_period;
+              tz = pr;
+            }
+          } else {
+            n = 0;
+            for (;;) {
+              if ((fl & FS_TRIPLET_COMMA) && (++cs == 4)) {
+                cs = 0;
+                *s++ = fs_comma;
+              } else {
+                *s++ = sn[n];
+                ++n;
+                if (n >= (fs_uint32)dp)
+                  break;
+              }
+            }
+            cs = (int)(s - (num + 64)) + (3 << 24);
+            if (pr)
+              *s++ = fs_period;
+            if ((l - dp) > (fs_uint32)pr)
+              l = pr + dp;
+            while (n < l) {
               *s++ = sn[n];
               ++n;
-              if (n >= (fs_uint32)dp)
-                break;
             }
-          }
-          cs = (int)(s - (num + 64)) + (3 << 24);
-          if (pr)
-            *s++ = fs_period;
-          if ((l - dp) > (fs_uint32)pr)
-            l = pr + dp;
-          while (n < l) {
-            *s++ = sn[n];
-            ++n;
-          }
-          tz = pr - (l - dp);
-        }
-      }
-      pr = 0;
-
-      if (fl & FS_METRIC_SUFFIX) {
-        char idx;
-        idx = 1;
-        if (fl & FS_METRIC_NOSPACE)
-          idx = 0;
-        tail[0] = idx;
-        tail[1] = ' ';
-        {
-          if (fl >> 24) {
-            if (fl & FS_METRIC_1024)
-              tail[idx + 1] = "_KMGT"[fl >> 24];
-            else
-              tail[idx + 1] = "_kMGT"[fl >> 24];
-            idx++;
-
-            if (fl & FS_METRIC_1024 && !(fl & FS_METRIC_JEDEC)) {
-              tail[idx + 1] = 'i';
-              idx++;
-            }
-            tail[0] = idx;
+            tz = pr - (l - dp);
           }
         }
-      };
-
-    flt_lead:
-
-      l = (fs_uint32)(s - (num + 64));
-      s = num + 64;
-      goto scopy;
-#endif
-
-    case 'B':
-    case 'b':
-      h = (f[0] == 'B') ? hexu : hex;
-      lead[0] = 0;
-      if (fl & FS_LEADING_0X) {
-        lead[0] = 2;
-        lead[1] = '0';
-        lead[2] = h[0xb];
-      }
-      l = (8 << 4) | (1 << 8);
-      goto radixnum;
-
-    case 'o':
-      h = hexu;
-      lead[0] = 0;
-      if (fl & FS_LEADING_0X) {
-        lead[0] = 1;
-        lead[1] = '0';
-      }
-      l = (3 << 4) | (3 << 8);
-      goto radixnum;
-
-    case 'p':
-      fl |= (sizeof(void *) == 8) ? FS_INTMAX : 0;
-      pr = sizeof(void *) * 2;
-      fl &= ~FS_LEADINGZERO;
-
-    case 'X':
-    case 'x':
-      h = (f[0] == 'X') ? hexu : hex;
-      l = (4 << 4) | (4 << 8);
-      lead[0] = 0;
-      if (fl & FS_LEADING_0X) {
-        lead[0] = 2;
-        lead[1] = '0';
-        lead[2] = h[16];
-      }
-    radixnum:
-
-      if (fl & FS_INTMAX)
-        n64 = va_arg(va, fs_uint64);
-      else
-        n64 = va_arg(va, fs_uint32);
-
-      s = num + FS_NUMSZ;
-      dp = 0;
-
-      tail[0] = 0;
-      if (n64 == 0) {
-        lead[0] = 0;
-        if (pr == 0) {
-          l = 0;
-          cs = 0;
-          goto scopy;
-        }
-      }
-
-      for (;;) {
-        *--s = h[n64 & ((1 << (l >> 8)) - 1)];
-        n64 >>= (l >> 8);
-        if (!((n64) || ((fs_int32)((num + FS_NUMSZ) - s) < pr)))
-          break;
-        if (fl & FS_TRIPLET_COMMA) {
-          ++l;
-          if ((l & 15) == ((l >> 4) & 15)) {
-            l &= ~15;
-            *--s = fs_comma;
-          }
-        }
-      };
-
-      cs = (fs_uint32)((num + FS_NUMSZ) - s) + ((((l >> 4) & 15)) << 24);
-
-      l = (fs_uint32)((num + FS_NUMSZ) - s);
-
-      goto scopy;
-
-    case 'u':
-    case 'i':
-    case 'd':
-
-      if (fl & FS_INTMAX) {
-        fs_int64 i64 = va_arg(va, fs_int64);
-        n64 = (fs_uint64)i64;
-        if ((f[0] != 'u') && (i64 < 0)) {
-          n64 = (fs_uint64)-i64;
-          fl |= FS_NEGATIVE;
-        }
-      } else {
-        fs_int32 i = va_arg(va, fs_int32);
-        n64 = (fs_uint32)i;
-        if ((f[0] != 'u') && (i < 0)) {
-          n64 = (fs_uint32)-i;
-          fl |= FS_NEGATIVE;
-        }
-      }
-
-#ifndef FS_SPRINTF_NOFLOAT
-      if (fl & FS_METRIC_SUFFIX) {
-        if (n64 < 1024)
-          pr = 0;
-        else if (pr == -1)
-          pr = 1;
-        fv = (double)(fs_int64)n64;
-        goto doafloat;
-      }
-#endif
-
-      s = num + FS_NUMSZ;
-      l = 0;
-
-      for (;;) {
-
-        char *o = s - 8;
-        if (n64 >= 100000000) {
-          n = (fs_uint32)(n64 % 100000000);
-          n64 /= 100000000;
-        } else {
-          n = (fs_uint32)n64;
-          n64 = 0;
-        }
-        if ((fl & FS_TRIPLET_COMMA) == 0) {
-          do {
-            s -= 2;
-            *(fs_uint16 *)s = *(fs_uint16 *)&fs_digitpair.pair[(n % 100) * 2];
-            n /= 100;
-          } while (n);
-        }
-        while (n) {
-          if ((fl & FS_TRIPLET_COMMA) && (l++ == 3)) {
-            l = 0;
-            *--s = fs_comma;
-            --o;
-          } else {
-            *--s = (char)(n % 10) + '0';
-            n /= 10;
-          }
-        }
-        if (n64 == 0) {
-          if ((s[0] == '0') && (s != (num + FS_NUMSZ)))
-            ++s;
-          break;
-        }
-        while (s != o)
-          if ((fl & FS_TRIPLET_COMMA) && (l++ == 3)) {
-            l = 0;
-            *--s = fs_comma;
-            --o;
-          } else {
-            *--s = '0';
-          }
-      }
-
-      tail[0] = 0;
-      fs_lead_sign(fl, lead);
-
-      l = (fs_uint32)((num + FS_NUMSZ) - s);
-      if (l == 0) {
-        *--s = '0';
-        l = 1;
-      }
-      cs = l + (3 << 24);
-      if (pr < 0)
         pr = 0;
 
-    scopy:
+        if (fl & FS_METRIC_SUFFIX) {
+          char idx;
+          idx = 1;
+          if (fl & FS_METRIC_NOSPACE)
+            idx = 0;
+          tail[0] = idx;
+          tail[1] = ' ';
+          {
+            if (fl >> 24) {
+              if (fl & FS_METRIC_1024)
+                tail[idx + 1] = "_KMGT"[fl >> 24];
+              else
+                tail[idx + 1] = "_kMGT"[fl >> 24];
+              idx++;
 
-      if (pr < (fs_int32)l)
-        pr = l;
-      n = pr + lead[0] + tail[0] + tz;
-      if (fw < (fs_int32)n)
-        fw = n;
-      fw -= n;
-      pr -= l;
+              if (fl & FS_METRIC_1024 && !(fl & FS_METRIC_JEDEC)) {
+                tail[idx + 1] = 'i';
+                idx++;
+              }
+              tail[0] = idx;
+            }
+          }
+        };
 
-      if ((fl & FS_LEFTJUST) == 0) {
-        if (fl & FS_LEADINGZERO) {
-          pr = (fw > pr) ? fw : pr;
-          fw = 0;
-        } else {
-          fl &= ~FS_TRIPLET_COMMA;
+      flt_lead:
+
+        l = (fs_uint32)(s - (num + 64));
+        s = num + 64;
+        goto scopy;
+#endif
+
+      case 'B':
+      case 'b':
+        h = (f[0] == 'B') ? hexu : hex;
+        lead[0] = 0;
+        if (fl & FS_LEADING_0X) {
+          lead[0] = 2;
+          lead[1] = '0';
+          lead[2] = h[0xb];
         }
-      }
+        l = (8 << 4) | (1 << 8);
+        goto radixnum;
 
-      if (fw + pr) {
-        fs_int32 i;
-        fs_uint32 c;
+      case 'o':
+        h = hexu;
+        lead[0] = 0;
+        if (fl & FS_LEADING_0X) {
+          lead[0] = 1;
+          lead[1] = '0';
+        }
+        l = (3 << 4) | (3 << 8);
+        goto radixnum;
 
-        if ((fl & FS_LEFTJUST) == 0)
-          while (fw > 0) {
-            fs_cb_buf_clamp(i, fw);
-            fw -= i;
-            while (i) {
-              if ((((fs_uintptr)bf) & 3) == 0)
-                break;
-              *bf++ = ' ';
-              --i;
+      case 'p':
+        fl |= (sizeof(void*) == 8) ? FS_INTMAX : 0;
+        pr = sizeof(void*) * 2;
+        fl &= ~FS_LEADINGZERO;
+
+      case 'X':
+      case 'x':
+        h = (f[0] == 'X') ? hexu : hex;
+        l = (4 << 4) | (4 << 8);
+        lead[0] = 0;
+        if (fl & FS_LEADING_0X) {
+          lead[0] = 2;
+          lead[1] = '0';
+          lead[2] = h[16];
+        }
+      radixnum:
+
+        if (fl & FS_INTMAX)
+          n64 = va_arg(va, fs_uint64);
+        else
+          n64 = va_arg(va, fs_uint32);
+
+        s = num + FS_NUMSZ;
+        dp = 0;
+
+        tail[0] = 0;
+        if (n64 == 0) {
+          lead[0] = 0;
+          if (pr == 0) {
+            l = 0;
+            cs = 0;
+            goto scopy;
+          }
+        }
+
+        for (;;) {
+          *--s = h[n64 & ((1 << (l >> 8)) - 1)];
+          n64 >>= (l >> 8);
+          if (!((n64) || ((fs_int32)((num + FS_NUMSZ) - s) < pr)))
+            break;
+          if (fl & FS_TRIPLET_COMMA) {
+            ++l;
+            if ((l & 15) == ((l >> 4) & 15)) {
+              l &= ~15;
+              *--s = fs_comma;
             }
-            while (i >= 4) {
-              *(fs_uint32 *)bf = 0x20202020;
-              bf += 4;
-              i -= 4;
+          }
+        };
+
+        cs = (fs_uint32)((num + FS_NUMSZ) - s) + ((((l >> 4) & 15)) << 24);
+
+        l = (fs_uint32)((num + FS_NUMSZ) - s);
+
+        goto scopy;
+
+      case 'u':
+      case 'i':
+      case 'd':
+
+        if (fl & FS_INTMAX) {
+          fs_int64 i64 = va_arg(va, fs_int64);
+          n64 = (fs_uint64)i64;
+          if ((f[0] != 'u') && (i64 < 0)) {
+            n64 = (fs_uint64)-i64;
+            fl |= FS_NEGATIVE;
+          }
+        } else {
+          fs_int32 i = va_arg(va, fs_int32);
+          n64 = (fs_uint32)i;
+          if ((f[0] != 'u') && (i < 0)) {
+            n64 = (fs_uint32)-i;
+            fl |= FS_NEGATIVE;
+          }
+        }
+
+#ifndef FS_SPRINTF_NOFLOAT
+        if (fl & FS_METRIC_SUFFIX) {
+          if (n64 < 1024)
+            pr = 0;
+          else if (pr == -1)
+            pr = 1;
+          fv = (double)(fs_int64)n64;
+          goto doafloat;
+        }
+#endif
+
+        s = num + FS_NUMSZ;
+        l = 0;
+
+        for (;;) {
+          char* o = s - 8;
+          if (n64 >= 100000000) {
+            n = (fs_uint32)(n64 % 100000000);
+            n64 /= 100000000;
+          } else {
+            n = (fs_uint32)n64;
+            n64 = 0;
+          }
+          if ((fl & FS_TRIPLET_COMMA) == 0) {
+            do {
+              s -= 2;
+              *(fs_uint16*)s = *(fs_uint16*)&fs_digitpair.pair[(n % 100) * 2];
+              n /= 100;
+            } while (n);
+          }
+          while (n) {
+            if ((fl & FS_TRIPLET_COMMA) && (l++ == 3)) {
+              l = 0;
+              *--s = fs_comma;
+              --o;
+            } else {
+              *--s = (char)(n % 10) + '0';
+              n /= 10;
             }
+          }
+          if (n64 == 0) {
+            if ((s[0] == '0') && (s != (num + FS_NUMSZ)))
+              ++s;
+            break;
+          }
+          while (s != o)
+            if ((fl & FS_TRIPLET_COMMA) && (l++ == 3)) {
+              l = 0;
+              *--s = fs_comma;
+              --o;
+            } else {
+              *--s = '0';
+            }
+        }
+
+        tail[0] = 0;
+        fs_lead_sign(fl, lead);
+
+        l = (fs_uint32)((num + FS_NUMSZ) - s);
+        if (l == 0) {
+          *--s = '0';
+          l = 1;
+        }
+        cs = l + (3 << 24);
+        if (pr < 0)
+          pr = 0;
+
+      scopy:
+
+        if (pr < (fs_int32)l)
+          pr = l;
+        n = pr + lead[0] + tail[0] + tz;
+        if (fw < (fs_int32)n)
+          fw = n;
+        fw -= n;
+        pr -= l;
+
+        if ((fl & FS_LEFTJUST) == 0) {
+          if (fl & FS_LEADINGZERO) {
+            pr = (fw > pr) ? fw : pr;
+            fw = 0;
+          } else {
+            fl &= ~FS_TRIPLET_COMMA;
+          }
+        }
+
+        if (fw + pr) {
+          fs_int32 i;
+          fs_uint32 c;
+
+          if ((fl & FS_LEFTJUST) == 0)
+            while (fw > 0) {
+              fs_cb_buf_clamp(i, fw);
+              fw -= i;
+              while (i) {
+                if ((((fs_uintptr)bf) & 3) == 0)
+                  break;
+                *bf++ = ' ';
+                --i;
+              }
+              while (i >= 4) {
+                *(fs_uint32*)bf = 0x20202020;
+                bf += 4;
+                i -= 4;
+              }
+              while (i) {
+                *bf++ = ' ';
+                --i;
+              }
+              fs_chk_cb_buf(1);
+            }
+
+          sn = lead + 1;
+          while (lead[0]) {
+            fs_cb_buf_clamp(i, lead[0]);
+            lead[0] -= (char)i;
             while (i) {
-              *bf++ = ' ';
+              *bf++ = *sn++;
               --i;
             }
             fs_chk_cb_buf(1);
           }
 
+          c = cs >> 24;
+          cs &= 0xffffff;
+          cs = (fl & FS_TRIPLET_COMMA)
+                   ? ((fs_uint32)(c - ((pr + cs) % (c + 1))))
+                   : 0;
+          while (pr > 0) {
+            fs_cb_buf_clamp(i, pr);
+            pr -= i;
+            if ((fl & FS_TRIPLET_COMMA) == 0) {
+              while (i) {
+                if ((((fs_uintptr)bf) & 3) == 0)
+                  break;
+                *bf++ = '0';
+                --i;
+              }
+              while (i >= 4) {
+                *(fs_uint32*)bf = 0x30303030;
+                bf += 4;
+                i -= 4;
+              }
+            }
+            while (i) {
+              if ((fl & FS_TRIPLET_COMMA) && (cs++ == c)) {
+                cs = 0;
+                *bf++ = fs_comma;
+              } else
+                *bf++ = '0';
+              --i;
+            }
+            fs_chk_cb_buf(1);
+          }
+        }
+
         sn = lead + 1;
         while (lead[0]) {
+          fs_int32 i;
           fs_cb_buf_clamp(i, lead[0]);
           lead[0] -= (char)i;
           while (i) {
@@ -8004,137 +9136,93 @@ FS_API_SPRINTF_DEF int fs_vsprintfcb(fs_sprintf_callback *callback, void *user,
           fs_chk_cb_buf(1);
         }
 
-        c = cs >> 24;
-        cs &= 0xffffff;
-        cs = (fl & FS_TRIPLET_COMMA) ? ((fs_uint32)(c - ((pr + cs) % (c + 1))))
-                                     : 0;
-        while (pr > 0) {
-          fs_cb_buf_clamp(i, pr);
-          pr -= i;
-          if ((fl & FS_TRIPLET_COMMA) == 0) {
-            while (i) {
-              if ((((fs_uintptr)bf) & 3) == 0)
-                break;
-              *bf++ = '0';
-              --i;
-            }
-            while (i >= 4) {
-              *(fs_uint32 *)bf = 0x30303030;
-              bf += 4;
-              i -= 4;
-            }
-          }
+        n = l;
+        while (n) {
+          fs_int32 i;
+          fs_cb_buf_clamp(i, n);
+          n -= i;
+          FS_UNALIGNED(while (i >= 4) {
+            *(fs_uint32 volatile*)bf = *(fs_uint32 volatile*)s;
+            bf += 4;
+            s += 4;
+            i -= 4;
+          })
           while (i) {
-            if ((fl & FS_TRIPLET_COMMA) && (cs++ == c)) {
-              cs = 0;
-              *bf++ = fs_comma;
-            } else
-              *bf++ = '0';
+            *bf++ = *s++;
             --i;
           }
           fs_chk_cb_buf(1);
         }
-      }
 
-      sn = lead + 1;
-      while (lead[0]) {
-        fs_int32 i;
-        fs_cb_buf_clamp(i, lead[0]);
-        lead[0] -= (char)i;
-        while (i) {
-          *bf++ = *sn++;
-          --i;
-        }
-        fs_chk_cb_buf(1);
-      }
-
-      n = l;
-      while (n) {
-        fs_int32 i;
-        fs_cb_buf_clamp(i, n);
-        n -= i;
-        FS_UNALIGNED(while (i >= 4) {
-          *(fs_uint32 volatile *)bf = *(fs_uint32 volatile *)s;
-          bf += 4;
-          s += 4;
-          i -= 4;
-        })
-        while (i) {
-          *bf++ = *s++;
-          --i;
-        }
-        fs_chk_cb_buf(1);
-      }
-
-      while (tz) {
-        fs_int32 i;
-        fs_cb_buf_clamp(i, tz);
-        tz -= i;
-        while (i) {
-          if ((((fs_uintptr)bf) & 3) == 0)
-            break;
-          *bf++ = '0';
-          --i;
-        }
-        while (i >= 4) {
-          *(fs_uint32 *)bf = 0x30303030;
-          bf += 4;
-          i -= 4;
-        }
-        while (i) {
-          *bf++ = '0';
-          --i;
-        }
-        fs_chk_cb_buf(1);
-      }
-
-      sn = tail + 1;
-      while (tail[0]) {
-        fs_int32 i;
-        fs_cb_buf_clamp(i, tail[0]);
-        tail[0] -= (char)i;
-        while (i) {
-          *bf++ = *sn++;
-          --i;
-        }
-        fs_chk_cb_buf(1);
-      }
-
-      if (fl & FS_LEFTJUST)
-        if (fw > 0) {
-          while (fw) {
-            fs_int32 i;
-            fs_cb_buf_clamp(i, fw);
-            fw -= i;
-            while (i) {
-              if ((((fs_uintptr)bf) & 3) == 0)
-                break;
-              *bf++ = ' ';
-              --i;
-            }
-            while (i >= 4) {
-              *(fs_uint32 *)bf = 0x20202020;
-              bf += 4;
-              i -= 4;
-            }
-            while (i--)
-              *bf++ = ' ';
-            fs_chk_cb_buf(1);
+        while (tz) {
+          fs_int32 i;
+          fs_cb_buf_clamp(i, tz);
+          tz -= i;
+          while (i) {
+            if ((((fs_uintptr)bf) & 3) == 0)
+              break;
+            *bf++ = '0';
+            --i;
           }
+          while (i >= 4) {
+            *(fs_uint32*)bf = 0x30303030;
+            bf += 4;
+            i -= 4;
+          }
+          while (i) {
+            *bf++ = '0';
+            --i;
+          }
+          fs_chk_cb_buf(1);
         }
-      break;
 
-    default:
-      s = num + FS_NUMSZ - 1;
-      *s = f[0];
-      l = 1;
-      fw = fl = 0;
-      lead[0] = 0;
-      tail[0] = 0;
-      pr = 0;
-      dp = 0;
-      cs = 0;
-      goto scopy;
+        sn = tail + 1;
+        while (tail[0]) {
+          fs_int32 i;
+          fs_cb_buf_clamp(i, tail[0]);
+          tail[0] -= (char)i;
+          while (i) {
+            *bf++ = *sn++;
+            --i;
+          }
+          fs_chk_cb_buf(1);
+        }
+
+        if (fl & FS_LEFTJUST)
+          if (fw > 0) {
+            while (fw) {
+              fs_int32 i;
+              fs_cb_buf_clamp(i, fw);
+              fw -= i;
+              while (i) {
+                if ((((fs_uintptr)bf) & 3) == 0)
+                  break;
+                *bf++ = ' ';
+                --i;
+              }
+              while (i >= 4) {
+                *(fs_uint32*)bf = 0x20202020;
+                bf += 4;
+                i -= 4;
+              }
+              while (i--)
+                *bf++ = ' ';
+              fs_chk_cb_buf(1);
+            }
+          }
+        break;
+
+      default:
+        s = num + FS_NUMSZ - 1;
+        *s = f[0];
+        l = 1;
+        fw = fl = 0;
+        lead[0] = 0;
+        tail[0] = 0;
+        pr = 0;
+        dp = 0;
+        cs = 0;
+        goto scopy;
     }
     ++f;
   }
@@ -8164,7 +9252,7 @@ done:
 #undef fs_flush_cb
 #undef fs_cb_buf_clamp
 
-FS_API_SPRINTF_DEF int fs_sprintf(char *buf, char const *fmt, ...) {
+FS_API_SPRINTF_DEF int fs_sprintf(char* buf, char const* fmt, ...) {
   int result;
   va_list va;
   va_start(va, fmt);
@@ -8174,14 +9262,14 @@ FS_API_SPRINTF_DEF int fs_sprintf(char *buf, char const *fmt, ...) {
 }
 
 typedef struct fs_sprintf_context {
-  char *buf;
+  char* buf;
   size_t count;
   size_t length;
   char tmp[FS_SPRINTF_MIN];
 } fs_sprintf_context;
 
-static char *fs_clamp_callback(const char *buf, void *user, size_t len) {
-  fs_sprintf_context *c = (fs_sprintf_context *)user;
+static char* fs_clamp_callback(const char* buf, void* user, size_t len) {
+  fs_sprintf_context* c = (fs_sprintf_context*)user;
   c->length += len;
 
   if (len > c->count)
@@ -8190,7 +9278,7 @@ static char *fs_clamp_callback(const char *buf, void *user, size_t len) {
   if (len) {
     if (buf != c->buf) {
       const char *s, *se;
-      char *d;
+      char* d;
       d = c->buf;
       s = buf;
       se = buf + len;
@@ -8207,15 +9295,17 @@ static char *fs_clamp_callback(const char *buf, void *user, size_t len) {
   return (c->count >= FS_SPRINTF_MIN) ? c->buf : c->tmp;
 }
 
-static char *fs_count_clamp_callback(const char *buf, void *user, size_t len) {
-  fs_sprintf_context *c = (fs_sprintf_context *)user;
+static char* fs_count_clamp_callback(const char* buf, void* user, size_t len) {
+  fs_sprintf_context* c = (fs_sprintf_context*)user;
   (void)sizeof(buf);
 
   c->length += len;
   return c->tmp;
 }
 
-FS_API_SPRINTF_DEF int fs_vsnprintf(char *buf, size_t count, char const *fmt,
+FS_API_SPRINTF_DEF int fs_vsnprintf(char* buf,
+                                    size_t count,
+                                    char const* fmt,
                                     va_list va) {
   fs_sprintf_context c;
 
@@ -8241,7 +9331,9 @@ FS_API_SPRINTF_DEF int fs_vsnprintf(char *buf, size_t count, char const *fmt,
   return (int)c.length;
 }
 
-FS_API_SPRINTF_DEF int fs_snprintf(char *buf, size_t count, char const *fmt,
+FS_API_SPRINTF_DEF int fs_snprintf(char* buf,
+                                   size_t count,
+                                   char const* fmt,
                                    ...) {
   int result;
   va_list va;
@@ -8253,20 +9345,20 @@ FS_API_SPRINTF_DEF int fs_snprintf(char *buf, size_t count, char const *fmt,
   return result;
 }
 
-FS_API_SPRINTF_DEF int fs_vsprintf(char *buf, char const *fmt, va_list va) {
+FS_API_SPRINTF_DEF int fs_vsprintf(char* buf, char const* fmt, va_list va) {
   return fs_vsprintfcb(0, 0, buf, fmt, va);
 }
 
 #ifndef FS_SPRINTF_NOFLOAT
 
-#define FS_COPYFP(dest, src)                                                   \
-  {                                                                            \
-    int cn;                                                                    \
-    for (cn = 0; cn < 8; cn++)                                                 \
-      ((char *)&dest)[cn] = ((char *)&src)[cn];                                \
+#define FS_COPYFP(dest, src)                  \
+  {                                           \
+    int cn;                                   \
+    for (cn = 0; cn < 8; cn++)                \
+      ((char*)&dest)[cn] = ((char*)&src)[cn]; \
   }
 
-static fs_int32 fs_real_to_parts(fs_int64 *bits, fs_int32 *expo, double value) {
+static fs_int32 fs_real_to_parts(fs_int64* bits, fs_int32* expo, double value) {
   double d;
   fs_int64 b = 0;
 
@@ -8374,46 +9466,48 @@ static fs_uint64 const fs_powten[20] = {1,
 #define fs_tento19th (1000000000000000000ULL)
 #endif
 
-#define fs_ddmulthi(oh, ol, xh, yh)                                            \
-  {                                                                            \
-    double ahi = 0, alo, bhi = 0, blo;                                         \
-    fs_int64 bt;                                                               \
-    oh = xh * yh;                                                              \
-    FS_COPYFP(bt, xh);                                                         \
-    bt &= ((~(fs_uint64)0) << 27);                                             \
-    FS_COPYFP(ahi, bt);                                                        \
-    alo = xh - ahi;                                                            \
-    FS_COPYFP(bt, yh);                                                         \
-    bt &= ((~(fs_uint64)0) << 27);                                             \
-    FS_COPYFP(bhi, bt);                                                        \
-    blo = yh - bhi;                                                            \
-    ol = ((ahi * bhi - oh) + ahi * blo + alo * bhi) + alo * blo;               \
+#define fs_ddmulthi(oh, ol, xh, yh)                              \
+  {                                                              \
+    double ahi = 0, alo, bhi = 0, blo;                           \
+    fs_int64 bt;                                                 \
+    oh = xh * yh;                                                \
+    FS_COPYFP(bt, xh);                                           \
+    bt &= ((~(fs_uint64)0) << 27);                               \
+    FS_COPYFP(ahi, bt);                                          \
+    alo = xh - ahi;                                              \
+    FS_COPYFP(bt, yh);                                           \
+    bt &= ((~(fs_uint64)0) << 27);                               \
+    FS_COPYFP(bhi, bt);                                          \
+    blo = yh - bhi;                                              \
+    ol = ((ahi * bhi - oh) + ahi * blo + alo * bhi) + alo * blo; \
   }
 
-#define fs_ddtoS64(ob, xh, xl)                                                 \
-  {                                                                            \
-    double ahi = 0, alo, vh, t;                                                \
-    ob = (fs_int64)xh;                                                         \
-    vh = (double)ob;                                                           \
-    ahi = (xh - vh);                                                           \
-    t = (ahi - xh);                                                            \
-    alo = (xh - (ahi - t)) - (vh + t);                                         \
-    ob += (fs_int64)(ahi + alo + xl);                                          \
+#define fs_ddtoS64(ob, xh, xl)         \
+  {                                    \
+    double ahi = 0, alo, vh, t;        \
+    ob = (fs_int64)xh;                 \
+    vh = (double)ob;                   \
+    ahi = (xh - vh);                   \
+    t = (ahi - xh);                    \
+    alo = (xh - (ahi - t)) - (vh + t); \
+    ob += (fs_int64)(ahi + alo + xl);  \
   }
 
-#define fs_ddrenorm(oh, ol)                                                    \
-  {                                                                            \
-    double s;                                                                  \
-    s = oh + ol;                                                               \
-    ol = ol - (s - oh);                                                        \
-    oh = s;                                                                    \
+#define fs_ddrenorm(oh, ol) \
+  {                         \
+    double s;               \
+    s = oh + ol;            \
+    ol = ol - (s - oh);     \
+    oh = s;                 \
   }
 
 #define fs_ddmultlo(oh, ol, xh, xl, yh, yl) ol = ol + (xh * yl + xl * yh);
 
 #define fs_ddmultlos(oh, ol, xh, yl) ol = ol + (xh * yl);
 
-static void fs_raise_to_power10(double *ohi, double *olo, double d,
+static void fs_raise_to_power10(double* ohi,
+                                double* olo,
+                                double d,
                                 fs_int32 power) {
   double ph, pl;
   if ((power >= 0) && (power <= 22)) {
@@ -8476,8 +9570,11 @@ static void fs_raise_to_power10(double *ohi, double *olo, double d,
   *olo = pl;
 }
 
-static fs_int32 fs_real_to_str(char const **start, fs_uint32 *len, char *out,
-                               fs_int32 *decimal_pos, double value,
+static fs_int32 fs_real_to_str(char const** start,
+                               fs_uint32* len,
+                               char* out,
+                               fs_int32* decimal_pos,
+                               double value,
                                fs_uint32 frac_digits) {
   double d;
   fs_int64 bits = 0;
@@ -8575,7 +9672,7 @@ static fs_int32 fs_real_to_str(char const **start, fs_uint32 *len, char *out,
   e = 0;
   for (;;) {
     fs_uint32 n;
-    char *o = out - 8;
+    char* o = out - 8;
 
     if (bits >= 100000000) {
       n = (fs_uint32)(bits % 100000000);
@@ -8586,7 +9683,7 @@ static fs_int32 fs_real_to_str(char const **start, fs_uint32 *len, char *out,
     }
     while (n) {
       out -= 2;
-      *(fs_uint16 *)out = *(fs_uint16 *)&fs_digitpair.pair[(n % 100) * 2];
+      *(fs_uint16*)out = *(fs_uint16*)&fs_digitpair.pair[(n % 100) * 2];
       n /= 100;
       e += 2;
     }
@@ -8621,7 +9718,7 @@ static fs_int32 fs_real_to_str(char const **start, fs_uint32 *len, char *out,
 #undef FS_UNALIGNED
 /* END stb_sprintf.c */
 
-#if defined(__GNUC__) &&                                                       \
+#if defined(__GNUC__) && \
     (__GNUC__ >= 7 || (__GNUC__ == 6 && __GNUC_MINOR__ >= 1))
 #pragma GCC diagnostic pop
 #endif

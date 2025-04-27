@@ -12,6 +12,7 @@ ifeq ($(config),debug)
   mk_log_config = debug
   mk_args_config = debug
   mk_fs_config = debug
+  mk_dir_config = debug
   mk_stb_config = debug
   mk_sqt_config = debug
 
@@ -19,6 +20,7 @@ else ifeq ($(config),release)
   mk_log_config = release
   mk_args_config = release
   mk_fs_config = release
+  mk_dir_config = release
   mk_stb_config = release
   mk_sqt_config = release
 
@@ -26,7 +28,7 @@ else
   $(error "invalid configuration $(config)")
 endif
 
-PROJECTS := mk_log mk_args mk_fs mk_stb mk_sqt
+PROJECTS := mk_log mk_args mk_fs mk_dir mk_stb mk_sqt
 
 .PHONY: all clean help $(PROJECTS) 
 
@@ -50,6 +52,12 @@ ifneq (,$(mk_fs_config))
 	@${MAKE} --no-print-directory -C BUILD -f mk_fs.make config=$(mk_fs_config)
 endif
 
+mk_dir:
+ifneq (,$(mk_dir_config))
+	@echo "==== Building mk_dir ($(mk_dir_config)) ===="
+	@${MAKE} --no-print-directory -C BUILD -f mk_dir.make config=$(mk_dir_config)
+endif
+
 mk_stb:
 ifneq (,$(mk_stb_config))
 	@echo "==== Building mk_stb ($(mk_stb_config)) ===="
@@ -66,6 +74,7 @@ clean:
 	@${MAKE} --no-print-directory -C BUILD -f mk_log.make clean
 	@${MAKE} --no-print-directory -C BUILD -f mk_args.make clean
 	@${MAKE} --no-print-directory -C BUILD -f mk_fs.make clean
+	@${MAKE} --no-print-directory -C BUILD -f mk_dir.make clean
 	@${MAKE} --no-print-directory -C BUILD -f mk_stb.make clean
 	@${MAKE} --no-print-directory -C BUILD -f mk_sqt.make clean
 
@@ -82,6 +91,7 @@ help:
 	@echo "   mk_log"
 	@echo "   mk_args"
 	@echo "   mk_fs"
+	@echo "   mk_dir"
 	@echo "   mk_stb"
 	@echo "   mk_sqt"
 	@echo ""

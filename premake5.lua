@@ -46,6 +46,17 @@ project "mk_fs"
   buildoptions { "-Wno-deprecated-declarations" }
   files {"deps/fs.c"}
 
+-- FS Library
+project "mk_dir"
+  kind "StaticLib"
+  language "C"
+  location "BUILD"
+  targetdir "BUILD"
+  objdir "BUILD"
+  targetname "dir"
+  buildoptions { "-Wno-deprecated-declarations" }
+  files {"deps/mkdirp.c"}
+
 -- STB Library
 project "mk_stb"
   kind "StaticLib"
@@ -73,30 +84,44 @@ project "mk_sqt"
     "src/wad/*.c"
   }
   includedirs {"src", "deps"}
-  links { "mk_log:static", "mk_args:static", "mk_fs:static", "mk_stb:static" }
+  links { "mk_log:static", "mk_args:static", "mk_fs:static", "mk_dir:static", "mk_stb:static" }
   buildoptions { "-std=c2x" }
   defines { "_POSIX_C_SOURCE=199309L" }  -- Needed for some C23 features
   
 -- Run Action 1
 newaction {
-  trigger = "r",
-  description = "quick execute",
+  trigger = "1",
+  description = "1",
   execute = function()
-    os.execute("BUILD/sqt -m=KEEP/armor.mdl")
+    os.execute("BUILD/sqt pak info -i /Users/sepi/Downloads/mod/lq1/pak0.pak")
   end
 }
 
 -- Run Action 2
 newaction {
-  trigger = "rr",
-  description = "execute with args",
+  trigger = "2",
+  description = "2",
   execute = function()
-    -- Capture additional command-line arguments
-    local args = _ARGS
-    local args_str = table.concat(args, " ")
-    
-    -- Execute the program with arguments
-    os.execute("BUILD/sqt " .. args_str)
+    os.execute("BUILD/sqt pak list -i /Users/sepi/Downloads/mod/lq1/pak0.pak")
   end
 }
+
+-- Run Action 3
+newaction {
+  trigger = "3",
+  description = "3",
+  execute = function()
+    os.execute("BUILD/sqt pak extract -i /Users/sepi/Downloads/mod/lq1/pak0.pak -o /Users/sepi/Downloads/mod-x")
+  end
+}
+
+-- Run Action 4
+newaction {
+  trigger = "4",
+  description = "4",
+  execute = function()
+    os.execute("BUILD/sqt pak extract -i /Users/sepi/Games/Quake1/bonkjam/pak0.pak -o /Users/sepi/Downloads/mod-xxx")
+  end
+}
+
 
