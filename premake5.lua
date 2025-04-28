@@ -46,17 +46,6 @@ project "mk_fs"
   buildoptions { "-Wno-deprecated-declarations" }
   files {"deps/fs.c"}
 
--- FS Library
-project "mk_dir"
-  kind "StaticLib"
-  language "C"
-  location "BUILD"
-  targetdir "BUILD"
-  objdir "BUILD"
-  targetname "dir"
-  buildoptions { "-Wno-deprecated-declarations" }
-  files {"deps/mkdirp.c"}
-
 -- STB Library
 project "mk_stb"
   kind "StaticLib"
@@ -67,6 +56,25 @@ project "mk_stb"
   targetname "stb"
   buildoptions { "-Wno-deprecated-declarations" }
   files {"deps/stb.c"}
+
+-- Sokol Library
+project "mk_sokol"
+  kind "StaticLib"
+  language "C"
+  location "BUILD"
+  targetdir "BUILD"
+  objdir "BUILD"
+  targetname "sokol"
+  files {"deps/sokol.c"}
+
+  filter "system:macosx"
+    -- defines { "SOKOL_GLCORE" }
+    links { "Cocoa.framework", "OpenGL.framework", "IOKit.framework" }
+    buildoptions { "-x objective-c" }
+
+  filter "system:linux"
+    -- defines { "SOKOL_GLCORE" }
+    links { "X11", "Xi", "Xcursor", "GL", "m" }
 
 -- Main Application
 project "mk_sqt"
@@ -81,13 +89,30 @@ project "mk_sqt"
     "src/cmd/*.c",
     "src/pak/*.c",
     "src/lmp/*.c",
-    "src/wad/*.c"
+    "src/wad/*.c",
+    "src/ui/*.c",
   }
   includedirs {"src", "deps"}
-  links { "mk_log:static", "mk_args:static", "mk_fs:static", "mk_dir:static", "mk_stb:static" }
+  links { "mk_log:static", "mk_args:static", "mk_fs:static", "mk_stb:static", "mk_sokol:static" }
   buildoptions { "-std=c2x" }
+  defines { "SOKOL_GLCORE" }
   defines { "_POSIX_C_SOURCE=199309L" }  -- Needed for some C23 features
-  
+
+  filter "system:macosx"
+    links { "Cocoa.framework", "OpenGL.framework", "IOKit.framework" }
+
+  filter "system:linux"
+    links { "X11", "Xi", "Xcursor", "GL", "m" }
+
+-- GLSL Shader Compilation Action
+newaction {
+  trigger = "glsl",
+  description = "Compile shaders into C headers",
+  execute = function()
+    os.execute("sokol-shdc -i res/shaders/default.glsl -l glsl410 -f sokol -o src/glsl/default.h")
+  end
+}
+
 -- Run Action 1
 newaction {
   trigger = "1",
